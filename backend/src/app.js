@@ -14,8 +14,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
+// Routes - Mount the entire router group under /api/daily-reports
 app.use("/api/daily-reports", dailyReportRoutes);
-
+app.use("/api", dailyReportRoutes);
 // Error handling middleware (optional)
 app.use((err, req, res, next) => {
   console.error(err.stack);
@@ -24,5 +25,6 @@ app.use((err, req, res, next) => {
 // Error handling middleware
 app.use(require("./middleware/errorHandler"));
 app.use(cors());
+
 
 module.exports = app;

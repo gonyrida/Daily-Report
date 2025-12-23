@@ -2,12 +2,12 @@ const mongoose = require("mongoose");
 
 const ResourceSchema = new mongoose.Schema(
   {
-    description: { type: String, required: true }, // Changed from 'name'
+    description: { type: String, required: true },
     unit: { type: String, default: "" },
-    name: { type: String, required: true },
     prev: { type: Number, default: 0 },
     today: { type: Number, default: 0 },
     accumulated: { type: Number, default: 0 },
+    // REMOVED: name field (you already have description)
   },
   { _id: false }
 );
@@ -61,11 +61,19 @@ const dailyReportSchema = new mongoose.Schema(
       enum: ["draft", "submitted"],
       default: "draft",
     },
+
+    submittedAt: {
+      type: Date,
+      default: null,
+    }, // ← ADD THIS
   },
   {
     timestamps: true,
   }
 );
+
+// Add index for faster queries
+dailyReportSchema.index({ projectName: 1, reportDate: 1 });
 
 const DailyReport = mongoose.model("DailyReport", dailyReportSchema);
 

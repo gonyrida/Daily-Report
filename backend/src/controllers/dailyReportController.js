@@ -20,14 +20,26 @@ const createDailyReport = async (req, res) => {
   }
 };
 
-// Get report by project + date
+// Get report by date only (frontend uses this)
 const getReportByDate = async (req, res) => {
   try {
-    const { projectName, date } = req.params;
-    const report = await dailyReportService.getReportByDate(
-      projectName,
-      new Date(date)
-    );
+    const { date } = req.params;
+
+    // If projectName is also in params, use both
+    const { projectName } = req.params;
+
+    let report;
+    if (projectName) {
+      // Route: /project/:projectName/date/:date
+      report = await dailyReportService.getReportByDate(
+        projectName,
+        new Date(date)
+      );
+    } else {
+      // Route: /date/:date - just find by date
+      report = await dailyReportService.getReportByDateOnly(new Date(date));
+    }
+
     if (!report) {
       return res.status(404).json({ message: "Report not found" });
     }
@@ -56,10 +68,11 @@ const saveOrUpdateReport = async (req, res) => {
   }
 };
 
-// Submit report
+// Submit report - FIXED: use req.body instead of req.query
 const submitReport = async (req, res) => {
   try {
-    const { projectName, date } = req.query;
+    const { projectName, date } = req.body; // ← CHANGED from req.query to req.body
+
     if (!projectName || !date) {
       return res
         .status(400)
@@ -70,6 +83,7 @@ const submitReport = async (req, res) => {
       projectName,
       new Date(date)
     );
+
     if (!report) {
       return res.status(404).json({ message: "Report not found" });
     }
