@@ -1,6 +1,13 @@
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export interface ResourceRow {
   id: string;
@@ -17,9 +24,19 @@ interface ResourceTableProps {
   rows: ResourceRow[];
   setRows: (rows: ResourceRow[]) => void;
   showUnit?: boolean;
+  useDropdown?: boolean; // New prop to enable dropdown
+  dropdownOptions?: string[]; // Options for dropdown
 }
 
-const ResourceTable = ({ title, icon, rows, setRows, showUnit = false }: ResourceTableProps) => {
+const ResourceTable = ({
+  title,
+  icon,
+  rows,
+  setRows,
+  showUnit = false,
+  useDropdown = false,
+  dropdownOptions = [],
+}: ResourceTableProps) => {
   const addRow = () => {
     const newRow: ResourceRow = {
       id: crypto.randomUUID(),
@@ -35,11 +52,20 @@ const ResourceTable = ({ title, icon, rows, setRows, showUnit = false }: Resourc
   const removeRow = (id: string) => {
     setRows(rows.filter((row) => row.id !== id));
   };
-
-  const updateRow = (id: string, field: keyof ResourceRow, value: string | number) => {
+ 
+  const updateRow = (
+    id: string,
+    field: keyof ResourceRow,
+    value: string | number
+  ) => {
     setRows(
       rows.map((row) => {
         if (row.id === id) {
+          // Handle custom entry selection
+          if (field === "description" && value === "__custom__") {
+            return { ...row, description: "" }; // Clear to allow typing
+          }
+
           const updatedRow = { ...row, [field]: value };
           if (field === "prev" || field === "today") {
             const prev = field === "prev" ? Number(value) : row.prev;
@@ -70,7 +96,7 @@ const ResourceTable = ({ title, icon, rows, setRows, showUnit = false }: Resourc
           Add Row
         </Button>
       </div>
-      
+
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
@@ -98,27 +124,79 @@ const ResourceTable = ({ title, icon, rows, setRows, showUnit = false }: Resourc
           <tbody>
             {rows.length === 0 ? (
               <tr key="empty-row">
-                <td colSpan={showUnit ? 6 : 5} className="text-center py-8 text-muted-foreground">
+                <td
+                  colSpan={showUnit ? 6 : 5}
+                  className="text-center py-8 text-muted-foreground"
+                >
                   No entries yet. Click "Add Row" to begin.
                 </td>
               </tr>
             ) : (
               <>
                 {rows.map((row) => (
-                  <tr key={row.id} className="border-t border-table-border hover:bg-muted/30 transition-colors">
+                  <tr
+                    key={row.id}
+                    className="border-t border-table-border hover:bg-muted/30 transition-colors"
+                  >
                     <td className="px-3 py-2">
-                      <Input
-                        value={row.description}
-                        onChange={(e) => updateRow(row.id, "description", e.target.value)}
-                        placeholder="Enter description..."
-                        className="border-0 bg-transparent focus-visible:ring-1"
-                      />
+                      {useDropdown && dropdownOptions.length > 0 ? (
+                        // Show dropdown if enabled and has options
+                        row.description &&
+                        !dropdownOptions.includes(row.description) ? (
+                          // If custom value, show input field
+                          <Input
+                            value={row.description}
+                            onChange={(e) =>
+                              updateRow(row.id, "description", e.target.value)
+                            }
+                            placeholder="Enter custom position..."
+                            className="border-0 bg-transparent focus-visible:ring-1"
+                            autoFocus
+                          />
+                        ) : (
+                          // Otherwise show dropdown
+                          <Select
+                            value={row.description}
+                            onValueChange={(value) =>
+                              updateRow(row.id, "description", value)
+                            }
+                          >
+                            <SelectTrigger className="border-0 bg-transparent focus:ring-1">
+                              <SelectValue placeholder="Select position..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {dropdownOptions.map((option) => (
+                                <SelectItem key={option} value={option}>
+                                  {option}
+                                </SelectItem>
+                              ))}
+                              <SelectItem value="__custom__">
+                                <span className="text-primary">
+                                  + Custom Entry
+                                </span>
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )
+                      ) : (
+                        // Regular input for materials and machinery
+                        <Input
+                          value={row.description}
+                          onChange={(e) =>
+                            updateRow(row.id, "description", e.target.value)
+                          }
+                          placeholder="Enter description..."
+                          className="border-0 bg-transparent focus-visible:ring-1"
+                        />
+                      )}
                     </td>
                     {showUnit && (
                       <td className="px-3 py-2">
                         <Input
                           value={row.unit || ""}
-                          onChange={(e) => updateRow(row.id, "unit", e.target.value)}
+                          onChange={(e) =>
+                            updateRow(row.id, "unit", e.target.value)
+                          }
                           placeholder="Unit"
                           className="border-0 bg-transparent text-center focus-visible:ring-1"
                         />
@@ -128,7 +206,9 @@ const ResourceTable = ({ title, icon, rows, setRows, showUnit = false }: Resourc
                       <Input
                         type="number"
                         value={row.prev || ""}
-                        onChange={(e) => updateRow(row.id, "prev", Number(e.target.value) || 0)}
+                        onChange={(e) =>
+                          updateRow(row.id, "prev", Number(e.target.value) || 0)
+                        }
                         className="border-0 bg-transparent text-center focus-visible:ring-1"
                       />
                     </td>
@@ -136,7 +216,13 @@ const ResourceTable = ({ title, icon, rows, setRows, showUnit = false }: Resourc
                       <Input
                         type="number"
                         value={row.today || ""}
-                        onChange={(e) => updateRow(row.id, "today", Number(e.target.value) || 0)}
+                        onChange={(e) =>
+                          updateRow(
+                            row.id,
+                            "today",
+                            Number(e.target.value) || 0
+                          )
+                        }
                         className="border-0 bg-transparent text-center focus-visible:ring-1"
                       />
                     </td>
@@ -158,7 +244,10 @@ const ResourceTable = ({ title, icon, rows, setRows, showUnit = false }: Resourc
                   </tr>
                 ))}
                 {/* Total Row */}
-                <tr key="total-row" className="border-t-2 border-primary/30 bg-primary/5">
+                <tr
+                  key="total-row"
+                  className="border-t-2 border-primary/30 bg-primary/5"
+                >
                   <td className="px-4 py-3 font-semibold text-foreground">
                     Total
                   </td>
