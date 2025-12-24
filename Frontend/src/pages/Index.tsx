@@ -12,13 +12,20 @@ import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
 // API Configuration
 const API_BASE_URL = "http://localhost:5000/api/daily-reports";
 
+// Helper function to get auth headers
+const getAuthHeaders = () => {
+  const token = localStorage.getItem("token");
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+};
+
 // API functions
 const saveReportToDB = async (reportData: any) => {
   const response = await fetch(`${API_BASE_URL}/save`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: getAuthHeaders(),
     body: JSON.stringify(reportData),
   });
   if (!response.ok) {
@@ -34,9 +41,7 @@ const submitReportToDB = async (projectName: string, reportDate: Date) => {
   const dateStr = reportDate.toISOString().split("T")[0];
   const response = await fetch(`${API_BASE_URL}/submit`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: getAuthHeaders(),
     body: JSON.stringify({ projectName, date: dateStr }),
   });
   if (!response.ok) {

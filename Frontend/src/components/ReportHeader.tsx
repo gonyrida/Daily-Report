@@ -1,3 +1,5 @@
+import LogoutButton from "./LogoutButton";
+
 const ReportHeader = () => {
   return (
     <header className="report-header py-4 px-6 shadow-lg">
@@ -22,17 +24,20 @@ const ReportHeader = () => {
           </p> */}
         </div>
 
-        <div
-          className="p-0 rounded-lg overflow-hidden"
-          style={{ width: 140, height: 48 }}
-        >
-          <img
-            src="/koica_logo.png"
-            alt="KOICA"
-            className="object-contain w-full h-full"
-            crossOrigin="anonymous"
-            referrerPolicy="no-referrer"
-          />
+        <div className="flex items-center space-x-4">
+          <LogoutButton />
+          <div
+            className="p-0 rounded-lg overflow-hidden"
+            style={{ width: 140, height: 48 }}
+          >
+            <img
+              src="/koica_logo.png"
+              alt="KOICA"
+              className="object-contain w-full h-full"
+              crossOrigin="anonymous"
+              referrerPolicy="no-referrer"
+            />
+          </div>
         </div>
       </div>
     </header>
