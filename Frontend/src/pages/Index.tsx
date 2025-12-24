@@ -22,7 +22,9 @@ const saveReportToDB = async (reportData: any) => {
     body: JSON.stringify(reportData),
   });
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: "Failed to save report" }));
+    const error = await response
+      .json()
+      .catch(() => ({ message: "Failed to save report" }));
     throw new Error(error.message || "Failed to save report");
   }
   return response.json();
@@ -38,7 +40,9 @@ const submitReportToDB = async (projectName: string, reportDate: Date) => {
     body: JSON.stringify({ projectName, date: dateStr }),
   });
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: "Failed to submit report" }));
+    const error = await response
+      .json()
+      .catch(() => ({ message: "Failed to submit report" }));
     throw new Error(error.message || "Failed to submit report");
   }
   return response.json();
@@ -48,7 +52,7 @@ const submitReportToDB = async (projectName: string, reportDate: Date) => {
 const loadReportFromDB = async (reportDate: Date) => {
   const dateStr = reportDate.toISOString().split("T")[0];
   const response = await fetch(`${API_BASE_URL}/date/${dateStr}`);
-  
+
   if (response.status === 404) {
     return null;
   }
@@ -130,21 +134,34 @@ const Index = () => {
   const lastDateRef = useRef<string | null>(null);
 
   // Helper to get current report data
-  const getReportData = useCallback((): ReportData => ({
-    projectName,
-    reportDate: reportDate?.toISOString() || null,
-    weather,
-    weatherPeriod,
-    temperature,
-    activityToday,
-    workPlanNextDay,
-    managementTeam,
-    workingTeam,
-    materials,
-    machinery,
-  }), [projectName, reportDate, weather, weatherPeriod, temperature, 
-      activityToday, workPlanNextDay, managementTeam, workingTeam, 
-      materials, machinery]);
+  const getReportData = useCallback(
+    (): ReportData => ({
+      projectName,
+      reportDate: reportDate?.toISOString() || null,
+      weather,
+      weatherPeriod,
+      temperature,
+      activityToday,
+      workPlanNextDay,
+      managementTeam,
+      workingTeam,
+      materials,
+      machinery,
+    }),
+    [
+      projectName,
+      reportDate,
+      weather,
+      weatherPeriod,
+      temperature,
+      activityToday,
+      workPlanNextDay,
+      managementTeam,
+      workingTeam,
+      materials,
+      machinery,
+    ]
+  );
 
   // Load report on mount - Try DB first, fallback to localStorage
   useEffect(() => {
@@ -154,11 +171,13 @@ const Index = () => {
       try {
         // Try to load from database first
         const dbReport = await loadReportFromDB(reportDate);
-        
+
         if (dbReport) {
           // Load from database
           setProjectName(dbReport.projectName || "");
-          setReportDate(dbReport.reportDate ? new Date(dbReport.reportDate) : new Date());
+          setReportDate(
+            dbReport.reportDate ? new Date(dbReport.reportDate) : new Date()
+          );
           setWeather(dbReport.weather || "Sunny");
           setWeatherPeriod(dbReport.weatherPeriod || "AM");
           setTemperature(dbReport.temperature || "");
@@ -173,7 +192,11 @@ const Index = () => {
           const localDraft = loadDraftLocally(reportDate);
           if (localDraft) {
             setProjectName(localDraft.projectName || "");
-            setReportDate(localDraft.reportDate ? new Date(localDraft.reportDate) : new Date());
+            setReportDate(
+              localDraft.reportDate
+                ? new Date(localDraft.reportDate)
+                : new Date()
+            );
             setWeather(localDraft.weather || "Sunny");
             setWeatherPeriod(localDraft.weatherPeriod || "AM");
             setTemperature(localDraft.temperature || "");
@@ -191,7 +214,9 @@ const Index = () => {
         const localDraft = loadDraftLocally(reportDate);
         if (localDraft) {
           setProjectName(localDraft.projectName || "");
-          setReportDate(localDraft.reportDate ? new Date(localDraft.reportDate) : new Date());
+          setReportDate(
+            localDraft.reportDate ? new Date(localDraft.reportDate) : new Date()
+          );
           setWeather(localDraft.weather || "Sunny");
           setWeatherPeriod(localDraft.weatherPeriod || "AM");
           setTemperature(localDraft.temperature || "");
@@ -222,7 +247,7 @@ const Index = () => {
         try {
           // Try database first
           const dbReport = await loadReportFromDB(reportDate!);
-          
+
           if (dbReport) {
             // Found report in database
             setProjectName(dbReport.projectName || "");
@@ -238,7 +263,7 @@ const Index = () => {
           } else {
             // No DB report, try localStorage
             const localDraft = loadDraftLocally(reportDate);
-            
+
             if (localDraft) {
               // Found local draft
               setProjectName(localDraft.projectName || "");
@@ -255,7 +280,7 @@ const Index = () => {
               // No saved report: prefill from yesterday
               const yesterday = new Date(reportDate!.getTime() - 86400000);
               const prevData = loadDraftLocally(yesterday);
-              
+
               if (prevData) {
                 // Copy prev-day accumulated -> today's prev
                 const mapPrevFromAccum = (rows: ResourceRow[]) =>
@@ -265,12 +290,14 @@ const Index = () => {
                     today: 0,
                     accumulated: r.accumulated,
                   }));
-                  
-                setManagementTeam(mapPrevFromAccum(prevData.managementTeam || []));
+
+                setManagementTeam(
+                  mapPrevFromAccum(prevData.managementTeam || [])
+                );
                 setWorkingTeam(mapPrevFromAccum(prevData.workingTeam || []));
                 setMaterials(mapPrevFromAccum(prevData.materials || []));
                 setMachinery(mapPrevFromAccum(prevData.machinery || []));
-                
+
                 // Reset other fields for new day
                 setProjectName("");
                 setWeather("Sunny");
@@ -552,10 +579,17 @@ const Index = () => {
 
   const cleanResourceRows = (rows: ResourceRow[]) => {
     return rows
-      .filter((r) => r.description && r.description.trim() !== "")
+      .filter(
+        (r) =>
+          // Keep row if it has description OR any numeric values
+          (r.description && r.description.trim() !== "") ||
+          (r.prev && r.prev > 0) ||
+          (r.today && r.today > 0) ||
+          (r.accumulated && r.accumulated > 0)
+      )
       .map((r) => ({
-        description: r.description.trim(),
-        unit: r.unit,
+        description: r.description?.trim() || "",
+        unit: r.unit || "",
         prev: r.prev || 0,
         today: r.today || 0,
         accumulated: r.accumulated || 0,
@@ -586,12 +620,53 @@ const Index = () => {
         new Date(cleanedData.reportDate!)
       );
 
-      // Clear localStorage after successful submission
+      // Step 3: Clear localStorage after successful submission
       localStorage.removeItem(dateKey(reportDate));
+
+      // Step 4: Prepare next day's data (Running Total / Carry-Forward)
+      const nextDay = new Date(reportDate!.getTime() + 86400000);
+      const carryForwardData = {
+        projectName: cleanedData.projectName,
+        reportDate: nextDay.toISOString(),
+        weather: "Sunny",
+        weatherPeriod: "AM" as "AM" | "PM",
+        temperature: "",
+        activityToday: "",
+        workPlanNextDay: "",
+        managementTeam: cleanedData.managementTeam.map((r) => ({
+          ...r,
+          prev: r.accumulated, // ✅ Carry forward accumulated to prev
+          today: 0,
+          accumulated: r.accumulated,
+        })),
+        workingTeam: cleanedData.workingTeam.map((r) => ({
+          ...r,
+          prev: r.accumulated,
+          today: 0,
+          accumulated: r.accumulated,
+        })),
+        materials: cleanedData.materials.map((r) => ({
+          ...r,
+          prev: r.accumulated,
+          today: 0,
+          accumulated: r.accumulated,
+        })),
+        machinery: cleanedData.machinery.map((r) => ({
+          ...r,
+          prev: r.accumulated,
+          today: 0,
+          accumulated: r.accumulated,
+        })),
+      };
+
+      // Save next day's template locally
+      saveDraftLocally(nextDay, carryForwardData);
 
       toast({
         title: "Report Submitted",
-        description: "Your report has been submitted successfully.",
+        description:
+          "Your report has been submitted successfully. Tomorrow's report is ready with carried-forward totals.",
+        duration: 5000,
       });
     } catch (e: any) {
       toast({

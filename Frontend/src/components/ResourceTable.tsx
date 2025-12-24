@@ -97,7 +97,7 @@ const ResourceTable = ({ title, icon, rows, setRows, showUnit = false }: Resourc
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr>
+              <tr key="empty-row">
                 <td colSpan={showUnit ? 6 : 5} className="text-center py-8 text-muted-foreground">
                   No entries yet. Click "Add Row" to begin.
                 </td>
@@ -158,7 +158,7 @@ const ResourceTable = ({ title, icon, rows, setRows, showUnit = false }: Resourc
                   </tr>
                 ))}
                 {/* Total Row */}
-                <tr className="border-t-2 border-primary/30 bg-primary/5">
+                <tr key="total-row" className="border-t-2 border-primary/30 bg-primary/5">
                   <td className="px-4 py-3 font-semibold text-foreground">
                     Total
                   </td>
