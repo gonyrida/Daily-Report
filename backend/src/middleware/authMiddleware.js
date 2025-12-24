@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const { JWT_SECRET } = require("../config/env");
 const User = require("../models/userModel");
 
 // Middleware to authenticate JWT tokens
@@ -13,9 +14,8 @@ const authenticateToken = async (req, res, next) => {
         message: "Access token required",
       });
     }
-
     // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET);
 
     // Check if user still exists
     const user = await User.findById(decoded.userId);
