@@ -50,8 +50,8 @@ app.use((err, req, res, next) => {
 });
 
 // After your route definitions, add:
-app.use("/api/auth", authRoutes);
-app.use("/api/daily-reports", dailyReportRoutes);
+// app.use("/api/auth", authRoutes);
+// app.use("/api/daily-reports", dailyReportRoutes);
 
 // Add this debugging route temporarily
 app.get("/api/test", (req, res) => {

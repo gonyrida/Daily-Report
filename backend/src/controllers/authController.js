@@ -314,9 +314,13 @@ exports.changePassword = async (req, res) => {
 // @access  Public
 exports.forgotPassword = async (req, res) => {
   try {
+    console.log("🚀 forgotPassword called", req.body); // ✅ already added
+
     const { email } = req.body;
+    console.log("📧 Email received:", email);
 
     if (!email) {
+      console.log("⚠️ No email provided in request body");
       return res.status(400).json({
         success: false,
         message: "Email is required",
@@ -325,30 +329,28 @@ exports.forgotPassword = async (req, res) => {
 
     // Find user
     const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) {
-      // Don't reveal if email exists
-      return res.status(200).json({
-        success: true,
-        message: "If that email exists, a reset link has been sent",
-      });
-    }
+    console.log("🔍 User found:", user ? user.email : "No user found");
 
     // Generate reset token
     const resetToken = crypto.randomBytes(32).toString("hex");
+    console.log("🔑 Generated reset token:", resetToken);
+
     const hashedToken = crypto
       .createHash("sha256")
       .update(resetToken)
       .digest("hex");
 
     // Save reset token to database
-    await PasswordReset.create({
+    const resetRecord = await PasswordReset.create({
       userId: user._id,
       token: hashedToken,
       expiresAt: new Date(Date.now() + 3600000), // 1 hour
     });
+    console.log("💾 Reset token saved in DB:", resetRecord);
 
-    // Send email with reset link
+    // Prepare email
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+    console.log("🔗 Reset URL to send:", resetUrl);
 
     const htmlTemplate = `
       <!DOCTYPE html>
@@ -386,34 +388,22 @@ exports.forgotPassword = async (req, res) => {
       </html>
     `;
 
-    try {
-      await sendEmail({
-        to: user.email,
-        subject: "Password Reset Request - CACPM",
-        html: htmlTemplate,
-      });
-      console.log("Password reset email sent successfully to:", user.email);
-    } catch (emailError) {
-      console.error("❌ EMAIL ERROR FULL:", emailError);
-      // Return error to client for debugging
-      return res.status(500).json({
-        success: false,
-        message: "Failed to send reset email",
-        error: emailError.message,
-      });
-    }
-
-    console.log("Reset token (for development):", resetToken);
+    // Send email
+    await sendEmail({
+      to: user.email,
+      subject: "Password Reset Request - CACPM",
+      html: htmlTemplate,
+    });
+    console.log("✅ Password reset email sent successfully to:", user.email);
 
     res.status(200).json({
       success: true,
       message: "If that email exists, a reset link has been sent",
-      // Remove in production:
-      resetToken:
-        process.env.NODE_ENV === "development" ? resetToken : undefined,
+      resetToken: process.env.NODE_ENV === "development" ? resetToken : undefined,
     });
+
   } catch (error) {
-    console.error("Forgot password error:", error);
+    console.error("❌ Forgot password error:", error);
     res.status(500).json({
       success: false,
       message: "Server error processing password reset",
@@ -427,6 +417,7 @@ exports.forgotPassword = async (req, res) => {
 exports.resetPassword = async (req, res) => {
   try {
     const { token, newPassword } = req.body;
+    console.log("🚀 resetPassword called", req.body);
 
     if (!token || !newPassword) {
       return res.status(400).json({
