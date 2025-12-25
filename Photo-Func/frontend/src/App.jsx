@@ -37,18 +37,21 @@ export default function App() {
     const jsonSections = sections.map((section) => ({
       title: section.title,
       entries: section.entries.map((entry) => ({
-        images: Object.keys(entry.images), // keys in FormData
+        images: Object.keys(entry.images).map((key) => `${entry.id}_${key}`), // use the unique keys
         footers: entry.footers,
       })),
     }));
 
     formData.append("data", JSON.stringify(jsonSections));
 
-    // Append all image files to FormData
+    // Append all image files to FormData with unique keys per entry
     sections.forEach((section) =>
       section.entries.forEach((entry) =>
         Object.entries(entry.images).forEach(([key, file]) => {
-          if (file) formData.append(key, file);
+          if (file) {
+            const uniqueKey = `${entry.id}_${key}`; // <-- unique per entry
+            formData.append(uniqueKey, file);
+          }
         })
       )
     );
