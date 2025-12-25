@@ -1,3 +1,4 @@
+const sendEmail = require("../utils/sendEmail");
 const User = require("../models/userModel");
 const PasswordReset = require("../models/passwordResetModel");
 const generateToken = require("../utils/generateToken");
@@ -346,13 +347,61 @@ exports.forgotPassword = async (req, res) => {
       expiresAt: new Date(Date.now() + 3600000), // 1 hour
     });
 
-    // TODO: Send email with reset link
-    // const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
-    // await sendEmail({
-    //   to: user.email,
-    //   subject: "Password Reset Request",
-    //   html: `Click here to reset your password: ${resetUrl}`
-    // });
+    // Send email with reset link
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+
+    const htmlTemplate = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Password Reset - CACPM</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background-color: #007bff; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
+          .content { background-color: #f8f9fa; padding: 20px; border-radius: 0 0 5px 5px; }
+          .button { display: inline-block; background-color: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+          .footer { font-size: 12px; color: #666; text-align: center; margin-top: 20px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>CACPM Password Reset</h1>
+        </div>
+        <div class="content">
+          <p>Hello,</p>
+          <p>You have requested to reset your password for your CACPM account.</p>
+          <p>Please click the button below to reset your password:</p>
+          <a href="${resetUrl}" class="button">Reset Password</a>
+          <p>If the button doesn't work, copy and paste this link into your browser:</p>
+          <p><a href="${resetUrl}">${resetUrl}</a></p>
+          <p>This link will expire in 1 hour for security reasons.</p>
+          <p>If you didn't request this password reset, please ignore this email.</p>
+        </div>
+        <div class="footer">
+          <p>&copy; 2024 CACPM. All rights reserved.</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: "Password Reset Request - CACPM",
+        html: htmlTemplate,
+      });
+      console.log("Password reset email sent successfully to:", user.email);
+    } catch (emailError) {
+      console.error("❌ EMAIL ERROR FULL:", emailError);
+      // Return error to client for debugging
+      return res.status(500).json({
+        success: false,
+        message: "Failed to send reset email",
+        error: emailError.message,
+      });
+    }
 
     console.log("Reset token (for development):", resetToken);
 
@@ -435,6 +484,72 @@ exports.resetPassword = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Server error resetting password",
+    });
+  }
+};
+
+// @desc    Test email sending
+// @route   POST /api/auth/test-email
+// @access  Public (for testing purposes)
+exports.testEmail = async (req, res) => {
+  try {
+    const { to } = req.body;
+
+    if (!to) {
+      return res.status(400).json({
+        success: false,
+        message: "Recipient email is required",
+      });
+    }
+
+    const testHtml = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Test Email - CACPM</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background-color: #17a2b8; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
+          .content { background-color: #f8f9fa; padding: 20px; border-radius: 0 0 5px 5px; }
+          .footer { font-size: 12px; color: #666; text-align: center; margin-top: 20px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>CACPM Test Email</h1>
+        </div>
+        <div class="content">
+          <p>Hello,</p>
+          <p>This is a test email from CACPM to verify email functionality.</p>
+          <p>If you received this email, the email configuration is working correctly!</p>
+          <p>Timestamp: ${new Date().toISOString()}</p>
+        </div>
+        <div class="footer">
+          <p>&copy; 2024 CACPM. All rights reserved.</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    await sendEmail({
+      to,
+      subject: "Test Email - CACPM",
+      html: testHtml,
+    });
+
+    console.log("Test email sent successfully to:", to);
+    res.status(200).json({
+      success: true,
+      message: "Test email sent successfully",
+    });
+  } catch (error) {
+    console.error("Test email error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to send test email",
+      error: error.message,
     });
   }
 };

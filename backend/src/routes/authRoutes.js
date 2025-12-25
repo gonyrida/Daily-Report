@@ -9,6 +9,7 @@ const {
   updateProfile,
   changePassword,
   verifyToken,
+  testEmail,
 } = require("../controllers/authController");
 const { authenticateToken } = require("../middleware/authMiddleware");
 
@@ -16,9 +17,10 @@ const router = express.Router();
 
 // Public routes
 router.post("/register", register);
-router.post("/login", login);  // Make sure this line exists
+router.post("/login", login); // Make sure this line exists
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
+router.post("/test-email", testEmail); // For testing email functionality
 
 // Protected routes
 router.post("/logout", authenticateToken, logout);

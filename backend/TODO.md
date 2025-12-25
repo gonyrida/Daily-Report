@@ -1,17 +1,19 @@
-# TODO: Switch Backend to MongoDB
+# Email Delivery Fix Tasks
 
-- [x] Install mongoose and remove pg from package.json
-- [ ] Update db.js to connect to MongoDB using mongoose
-- [ ] Create app.js for Express setup
-- [ ] Update dailyReportModel.js to use mongoose schema
-- [ ] Update dailyReportController.js to use new model
-- [ ] Set up environment variables in env.js or .env
-- [ ] Test server startup and database connection
+## Current Issues
 
-# TODO: Implement Rolling Total (Carry-Forward) Logic
+- Reset password emails not arriving despite Nodemailer reporting "sent"
+- Plain text HTML triggering spam filters
+- Missing TLS settings for secure connection
+- Errors not surfaced to API responses
+- No proper HTML email template
 
-- [x] Update dailyReportService.js: Add getReportByDate method
-- [x] Update dailyReportService.js: Add saveOrUpdateReport method with rolling total logic
-- [x] Update dailyReportService.js: Add submitReport method
-- [x] Update dailyReportRoutes.js: Add routes for getReportByDate, saveOrUpdateReport, submitReport
-- [x] Test the rolling total functionality (server startup failed due to MongoDB connection, but logic implemented correctly)
+## Tasks to Complete
+
+- [ ] Update sendEmail.js with proper TLS settings and secure connection
+- [ ] Add proper HTML email template for password reset
+- [ ] Improve error handling to surface SMTP errors to API responses
+- [ ] Update forgotPassword controller to handle email errors properly
+- [ ] Add test email route for verification
+- [ ] Test email delivery and verify in inbox/spam folders
+- [ ] Check Gmail security activity and spam filtering

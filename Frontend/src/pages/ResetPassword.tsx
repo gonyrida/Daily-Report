@@ -195,6 +195,7 @@ const ResetPassword = () => {
     setError(null);
 
     try {
+      console.log("1000000000000000000000000");
       const response = await fetch(
         "http://localhost:5000/api/auth/reset-password",
         {

@@ -1,17 +1,26 @@
-# Bug Fixes TODO
+# TODO - Password Reset Bug Fix
 
-## Backend Authentication
+## Current Status
 
-- [x] Apply authentication middleware to daily report routes in app.js
+- Fixed the 500 Internal Server Error in forgot-password endpoint
+- Wrapped sendEmail call in try-catch to prevent email failures from crashing the endpoint
+- Password reset tokens are still generated and saved even if email fails
 
-## Frontend API Calls
+## Changes Made
 
-- [x] Add Authorization headers to API calls in Index.tsx
+- Modified `backend/src/controllers/authController.js` forgotPassword function
+- Added try-catch around sendEmail call
+- Added logging for email success/failure
 
-## React Warning Fix
+## Testing Required
 
-- [x] Fix Checkbox state handling in Login.tsx to prevent flushSync warning
+- Test forgot-password endpoint with valid email
+- Verify token is generated and returned in development mode
+- Check server logs for email sending status
+- Test with invalid email configuration to ensure graceful failure
 
-## Testing
+## Next Steps
 
-- [x] Test login flow and daily report loading
+- Verify email configuration (Gmail SMTP settings)
+- Consider implementing email service fallback or queue system
+- Test end-to-end password reset flow
