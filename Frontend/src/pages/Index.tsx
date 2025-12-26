@@ -316,13 +316,13 @@ const Index = () => {
     loadInitialReport();
   }, []); // Only run on mount
 
-  // Handle date change: save current, load or carry forward for new date
+  // Handle date change: save current, carry forward between dates, load or clear on first selection
   useEffect(() => {
     const newDateStr = reportDate?.toISOString().slice(0, 10) || null;
     const prevDateStr = lastDateRef.current;
 
     if (prevDateStr && newDateStr && prevDateStr !== newDateStr) {
-      // Date changed: save current date draft locally
+      // Date changed: save current date draft locally and carry forward
       saveDraftLocally(new Date(prevDateStr), getReportData());
 
       // Load the target date
@@ -442,6 +442,104 @@ const Index = () => {
       };
 
       loadTargetDate();
+    } else if (newDateStr && !prevDateStr) {
+      // First date selection: try to load existing data for this date, otherwise clear
+      const loadDataForDate = async () => {
+        try {
+          // Try to load from database first
+          const dbReport = await loadReportFromDB(reportDate!);
+          if (dbReport) {
+            setProjectName(dbReport.projectName || "");
+            // Handle backward compatibility: convert old format to new
+            if (dbReport.weatherAM !== undefined) {
+              setWeatherAM(dbReport.weatherAM || "");
+              setWeatherPM(dbReport.weatherPM || "");
+              setTempAM(dbReport.tempAM || "");
+              setTempPM(dbReport.tempPM || "");
+              setCurrentPeriod(dbReport.currentPeriod || "AM");
+            } else {
+              // Old format: migrate to new format
+              const oldWeather = dbReport.weather || "Sunny";
+              const oldPeriod = dbReport.weatherPeriod || "AM";
+              const oldTemp = dbReport.temperature || "";
+              if (oldPeriod === "AM") {
+                setWeatherAM(oldWeather);
+                setWeatherPM("");
+                setTempAM(oldTemp);
+                setTempPM("");
+              } else {
+                setWeatherAM("");
+                setWeatherPM(oldWeather);
+                setTempAM("");
+                setTempPM(oldTemp);
+              }
+              setCurrentPeriod("AM");
+            }
+            setActivityToday(dbReport.activityToday || "");
+            setWorkPlanNextDay(dbReport.workPlanNextDay || "");
+            setManagementTeam(dbReport.managementTeam || []);
+            setWorkingTeam(dbReport.workingTeam || []);
+            setMaterials(dbReport.materials || []);
+            setMachinery(dbReport.machinery || []);
+            return;
+          }
+
+          // Fallback to localStorage
+          const localDraft = loadDraftLocally(reportDate);
+          if (localDraft) {
+            setProjectName(localDraft.projectName || "");
+            // Handle backward compatibility
+            if (localDraft.weatherAM !== undefined) {
+              setWeatherAM(localDraft.weatherAM || "");
+              setWeatherPM(localDraft.weatherPM || "");
+              setTempAM(localDraft.tempAM || "");
+              setTempPM(localDraft.tempPM || "");
+              setCurrentPeriod(localDraft.currentPeriod || "AM");
+            } else {
+              const oldWeather = localDraft.weather || "Sunny";
+              const oldPeriod = localDraft.weatherPeriod || "AM";
+              const oldTemp = localDraft.temperature || "";
+              if (oldPeriod === "AM") {
+                setWeatherAM(oldWeather);
+                setWeatherPM("");
+                setTempAM(oldTemp);
+                setTempPM("");
+              } else {
+                setWeatherAM("");
+                setWeatherPM(oldWeather);
+                setTempAM("");
+                setTempPM(oldTemp);
+              }
+              setCurrentPeriod("AM");
+            }
+            setActivityToday(localDraft.activityToday || "");
+            setWorkPlanNextDay(localDraft.workPlanNextDay || "");
+            setManagementTeam(localDraft.managementTeam || []);
+            setWorkingTeam(localDraft.workingTeam || []);
+            setMaterials(localDraft.materials || []);
+            setMachinery(localDraft.machinery || []);
+            return;
+          }
+        } catch (e) {
+          console.error("Failed to load report for date:", e);
+        }
+
+        // No existing data: clear form to defaults
+        setProjectName("");
+        setWeatherAM("");
+        setWeatherPM("");
+        setTempAM("");
+        setTempPM("");
+        setCurrentPeriod("AM");
+        setActivityToday("");
+        setWorkPlanNextDay("");
+        setManagementTeam([]);
+        setWorkingTeam([]);
+        setMaterials([]);
+        setMachinery([]);
+      };
+
+      loadDataForDate();
     }
 
     lastDateRef.current = newDateStr;
