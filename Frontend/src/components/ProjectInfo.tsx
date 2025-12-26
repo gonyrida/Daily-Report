@@ -119,7 +119,7 @@ const ProjectInfo = ({
                   )}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {reportDate ? format(reportDate, "PPP") : format(new Date(), "PPP")}
+                  {reportDate ? format(reportDate, "PPP") : "Select date"}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
