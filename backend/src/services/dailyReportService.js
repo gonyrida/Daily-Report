@@ -216,13 +216,66 @@ const submitDailyReport = async (projectName, reportDate) => {
 };
 
 /**
- * Create a new report (optional)
+ * Create a new report with rolling totals
  */
 const createReport = async (reportData) => {
+  const { projectName, reportDate } = reportData;
+
+  if (!projectName || !reportDate) {
+    throw new Error("projectName and reportDate are required");
+  }
+
+  // Fetch the previous report for the same project
+  const previousReport = await DailyReport.findOne({ projectName })
+    .sort({ reportDate: -1 });
+
+  // Helper function to calculate rolling totals for one array
+  const calculateRollingTotals = (newItems, previousItems = []) => {
+    return newItems.map((item) => {
+      const prevItem = previousItems.find(
+        (p) => p.description === item.description
+      );
+      const prevAccum = prevItem?.accumulated || 0;
+      const today = Number(item.today) || 0;
+      return {
+        ...item,
+        prev: prevAccum,
+        accumulated: prevAccum + today,
+      };
+    });
+  };
+
+  // Process all arrays
+  const managementTeam = calculateRollingTotals(
+    reportData.managementTeam || [],
+    previousReport?.managementTeam || []
+  );
+
+  const workingTeam = calculateRollingTotals(
+    reportData.workingTeam || [],
+    previousReport?.workingTeam || []
+  );
+
+  const materials = calculateRollingTotals(
+    reportData.materials || [],
+    previousReport?.materials || []
+  );
+
+  const machinery = calculateRollingTotals(
+    reportData.machinery || [],
+    previousReport?.machinery || []
+  );
+
+  // Create the new report with calculated totals
   const report = new DailyReport({
     ...reportData,
-    status: "draft",
+    managementTeam,
+    workingTeam,
+    materials,
+    machinery,
+    status: "draft", // keep draft initially
   });
+
   return await report.save();
 };
 

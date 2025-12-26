@@ -55,16 +55,35 @@ const submitReportToDB = async (projectName: string, reportDate: Date) => {
 
 // FIXED: Removed duplicate "daily-reports" from path
 const loadReportFromDB = async (reportDate: Date) => {
-  const dateStr = reportDate.toISOString().split("T")[0];
-  const response = await fetch(`${API_BASE_URL}/date/${dateStr}`);
+  try {
+    const dateStr = reportDate.toISOString().split("T")[0];
+    const token = localStorage.getItem("token"); // get token from login
 
-  if (response.status === 404) {
-    return null;
+    if (!token) {
+      throw new Error("No authentication token found. Please log in.");
+    }
+
+    const response = await fetch(`${API_BASE_URL}/date/${dateStr}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}` // send token to backend
+      }
+    });
+
+    if (response.status === 404) {
+      return null; // report not found
+    }
+
+    if (!response.ok) {
+      throw new Error(`Failed to load report: ${response.statusText}`);
+    }
+
+    return response.json(); // return report data
+  } catch (err) {
+    console.error("Error loading report:", err);
+    throw err;
   }
-  if (!response.ok) {
-    throw new Error("Failed to load report");
-  }
-  return response.json();
 };
 
 // Local Storage helpers (for offline drafts)
