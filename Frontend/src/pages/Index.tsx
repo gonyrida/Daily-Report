@@ -145,6 +145,8 @@ const Index = () => {
 
   // Track previous date to detect changes
   const lastDateRef = useRef<string | null>(null);
+  // Track if initial load has happened
+  const initialLoadDoneRef = useRef(false);
 
   // Helper to get current report data
   const getReportData = useCallback(
@@ -178,10 +180,12 @@ const Index = () => {
     ]
   );
 
-  // Load report on mount - Try DB first, fallback to localStorage
+  // Load report on mount - Try DB first, fallback to localStorage (only on first mount)
   useEffect(() => {
     const loadInitialReport = async () => {
-      if (!reportDate) return;
+      if (!reportDate || initialLoadDoneRef.current) return; // Only load on first mount
+
+      initialLoadDoneRef.current = true;
 
       try {
         // Try to load from database first
@@ -310,9 +314,9 @@ const Index = () => {
     };
 
     loadInitialReport();
-  }, []); // Run only on mount
+  }, []); // Only run on mount
 
-  // Handle date change: save current, start fresh for new date
+  // Handle date change: save current, load or carry forward for new date
   useEffect(() => {
     const newDateStr = reportDate?.toISOString().slice(0, 10) || null;
     const prevDateStr = lastDateRef.current;
@@ -441,7 +445,7 @@ const Index = () => {
     }
 
     lastDateRef.current = newDateStr;
-  }, [reportDate]);
+  }, [reportDate, getReportData]);
 
   // Save draft to localStorage (silent mode for auto-save)
   const saveDraft = useCallback(
