@@ -111,7 +111,7 @@ const Index = () => {
 
   // Project Info
   const [projectName, setProjectName] = useState("");
-  const [reportDate, setReportDate] = useState<Date | undefined>(new Date());
+  const [reportDate, setReportDate] = useState<Date | undefined>(undefined);
   const [weather, setWeather] = useState("Sunny");
   const [weatherPeriod, setWeatherPeriod] = useState<"AM" | "PM">("AM");
   const [temperature, setTemperature] = useState("");
@@ -142,7 +142,7 @@ const Index = () => {
   const getReportData = useCallback(
     (): ReportData => ({
       projectName,
-      reportDate: reportDate?.toISOString() || null,
+      reportDate: (reportDate || new Date()).toISOString(),
       weather,
       weatherPeriod,
       temperature,

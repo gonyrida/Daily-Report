@@ -63,6 +63,8 @@ const ProjectInfo = ({
   temperature,
   setTemperature,
 }: ProjectInfoProps) => {
+  const [isOpen, setIsOpen] = useState(false);
+
   const weatherOptions = [
     { value: "Sunny", icon: Sun },
     { value: "Cloudy", icon: Cloud },
@@ -93,7 +95,7 @@ const ProjectInfo = ({
             <Label className="text-sm font-medium text-foreground">
               Report Date *
             </Label>
-            <Popover>
+            <Popover open={isOpen} onOpenChange={setIsOpen}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
@@ -103,15 +105,19 @@ const ProjectInfo = ({
                   )}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {reportDate ? format(reportDate, "PPP") : "Select date"}
+                  {reportDate ? format(reportDate, "PPP") : format(new Date(), "PPP")}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
                 <Calendar
                   mode="single"
                   selected={reportDate}
-                  onSelect={setReportDate}
+                  onSelect={(date) => {
+                    setReportDate(date);
+                    setIsOpen(false);
+                  }}
                   initialFocus
+                  defaultMonth={new Date()}
                   className={cn("p-3 pointer-events-auto")}
                 />
               </PopoverContent>
