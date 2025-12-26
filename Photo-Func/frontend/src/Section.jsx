@@ -20,11 +20,11 @@ export default function Section({ section, onUpdate, onDelete }) {
   };
 
   // Update a specific entry
-  const updateEntry = (entry) => {
+  const updateEntry = (updatedEntry) => {
     onUpdate({
       ...section,
       entries: section.entries.map((e) =>
-        e.id === entry.id ? entry : e
+        e.id === updatedEntry.id ? updatedEntry : e
       ),
     });
   };
