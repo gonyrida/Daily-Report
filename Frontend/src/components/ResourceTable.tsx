@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Cancel } from "@radix-ui/react-alert-dialog";
+import { useEffect } from "react";
 
 export interface ResourceRow {
   id: string;
@@ -80,6 +80,33 @@ const ResourceTable = ({
     );
   };
 
+  useEffect(() => {
+    // 🔹 Check row IDs
+    if (rows && rows.length > 0) {
+      const rowIds = rows.map(row => row.id);
+      const uniqueRowIds = new Set(rowIds);
+      if (uniqueRowIds.size !== rowIds.length) {
+        console.warn("Duplicate row IDs found!", rows);
+      }
+    }
+
+    // 🔹 Check dropdown options
+    if (dropdownOptions && dropdownOptions.length > 0) {
+      const duplicates = dropdownOptions.filter(
+        (item, index) => dropdownOptions.indexOf(item) !== index
+      );
+      if (duplicates.length > 0) {
+        console.warn("Duplicate dropdown options found!", duplicates);
+      }
+    }
+  }, [rows, dropdownOptions]);
+
+  const ids = rows.map(r => r.id);
+  const hasDuplicates = new Set(ids).size !== ids.length;
+  if (hasDuplicates) {
+    console.error(`Duplicate IDs found in ${title} table:`, ids);
+  }
+
   return (
     <div className="section-card overflow-hidden animate-fade-in">
       <div className="bg-table-header px-4 py-3 border-b border-table-border flex items-center justify-between">
@@ -134,9 +161,9 @@ const ResourceTable = ({
               </tr>
             ) : (
               <>
-                {rows.map((row) => (
+                {rows.map((row) => ( // 1. Update the row map key
                   <tr
-                    key={row.id}
+                    key={`${title}-${row.id}`} // Change from key={row.id}
                     className="border-t border-table-border hover:bg-muted/30 transition-colors"
                   >
                     <td className="px-3 py-2">
@@ -181,15 +208,16 @@ const ResourceTable = ({
                               <SelectValue placeholder="Select position..." />
                             </SelectTrigger>
                             <SelectContent>
-                              {dropdownOptions.map((option) => (
-                                <SelectItem key={option} value={option}>
+                              {dropdownOptions.map((option, index) => (
+                                <SelectItem 
+                                  key={`${title}-opt-${option}-${index}`} // Adds table title and index for safety
+                                  value={option}
+                                >
                                   {option}
                                 </SelectItem>
                               ))}
-                              <SelectItem value="__custom__">
-                                <span className="text-primary">
-                                  + Custom Entry
-                                </span>
+                              <SelectItem key="custom-entry" value="__custom__">
+                                <span className="text-primary">+ Custom Entry</span>
                               </SelectItem>
                             </SelectContent>
                           </Select>
@@ -259,9 +287,9 @@ const ResourceTable = ({
                     </td>
                   </tr>
                 ))}
-                {/* Total Row */}
+                {/* 2. Update the Total Row key */}
                 <tr
-                  key="total-row"
+                  key={`${title}-total-row`} // Change from key="total-row"
                   className="border-t-2 border-primary/30 bg-primary/5"
                 >
                   <td className="px-4 py-3 font-semibold text-foreground">
