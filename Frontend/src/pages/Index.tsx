@@ -22,7 +22,7 @@ const getAuthHeaders = () => {
 };
 
 // API functions
-const saveReportToDB = async (reportData: any) => {
+const saveReportToDB = async (reportData: ReportData) => {
   const response = await fetch(`${API_BASE_URL}/save`, {
     method: "POST",
     headers: getAuthHeaders(),
@@ -95,10 +95,15 @@ function loadDraftLocally(date: Date | undefined): ReportData | null {
 interface ReportData {
   projectName: string;
   reportDate: string | null;
-  weatherAM: string;
-  weatherPM: string;
-  tempAM: string;
-  tempPM: string;
+  weatherAM?: string;
+  weatherPM?: string;
+  tempAM?: string;
+  tempPM?: string;
+  currentPeriod?: "AM" | "PM";
+  // Backward compatibility properties
+  weather?: string;
+  weatherPeriod?: "AM" | "PM";
+  temperature?: string;
   activityToday: string;
   workPlanNextDay: string;
   managementTeam: ResourceRow[];
@@ -307,7 +312,7 @@ const Index = () => {
     loadInitialReport();
   }, []); // Run only on mount
 
-  // Handle date change: save current, load target, prefill from prev day if new
+  // Handle date change: save current, start fresh for new date
   useEffect(() => {
     const newDateStr = reportDate?.toISOString().slice(0, 10) || null;
     const prevDateStr = lastDateRef.current;
@@ -325,7 +330,7 @@ const Index = () => {
           if (dbReport) {
             // Found report in database
             setProjectName(dbReport.projectName || "");
-            // Handle backward compatibility
+            // Handle backward compatibility: convert old format to new
             if (dbReport.weatherAM !== undefined) {
               setWeatherAM(dbReport.weatherAM || "");
               setWeatherPM(dbReport.weatherPM || "");
@@ -333,6 +338,7 @@ const Index = () => {
               setTempPM(dbReport.tempPM || "");
               setCurrentPeriod(dbReport.currentPeriod || "AM");
             } else {
+              // Old format: migrate to new format
               const oldWeather = dbReport.weather || "Sunny";
               const oldPeriod = dbReport.weatherPeriod || "AM";
               const oldTemp = dbReport.temperature || "";
@@ -435,7 +441,7 @@ const Index = () => {
     }
 
     lastDateRef.current = newDateStr;
-  }, [reportDate, getReportData]);
+  }, [reportDate]);
 
   // Save draft to localStorage (silent mode for auto-save)
   const saveDraft = useCallback(
@@ -714,6 +720,7 @@ const Index = () => {
           (r.accumulated && r.accumulated > 0)
       )
       .map((r) => ({
+        id: r.id,
         description: r.description?.trim() || "",
         unit: r.unit || "",
         prev: r.prev || 0,
@@ -795,10 +802,12 @@ const Index = () => {
           "Your report has been submitted successfully. Tomorrow's report is ready with carried-forward totals.",
         duration: 5000,
       });
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const errorMessage =
+        e instanceof Error ? e.message : "Could not submit report. Please try again.";
       toast({
         title: "Submission Failed",
-        description: e.message || "Could not submit report. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     }
