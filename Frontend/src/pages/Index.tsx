@@ -238,7 +238,7 @@ const Index = () => {
     loadInitialReport();
   }, []); // Run only on mount
 
-  // Handle date change: save current, load target, prefill from prev day if new
+  // Handle date change: save current, start fresh for new date
   useEffect(() => {
     const newDateStr = reportDate?.toISOString().slice(0, 10) || null;
     const prevDateStr = lastDateRef.current;
@@ -247,82 +247,21 @@ const Index = () => {
       // Date changed: save current date draft locally
       saveDraftLocally(new Date(prevDateStr), getReportData());
 
-      // Load the target date
-      const loadTargetDate = async () => {
-        try {
-          // Try database first
-          const dbReport = await loadReportFromDB(reportDate!);
-
-          if (dbReport) {
-            // Found report in database
-            setProjectName(dbReport.projectName || "");
-            setWeather(dbReport.weather || "Sunny");
-            setWeatherPeriod(dbReport.weatherPeriod || "AM");
-            setTemperature(dbReport.temperature || "");
-            setActivityToday(dbReport.activityToday || "");
-            setWorkPlanNextDay(dbReport.workPlanNextDay || "");
-            setManagementTeam(dbReport.managementTeam || []);
-            setWorkingTeam(dbReport.workingTeam || []);
-            setMaterials(dbReport.materials || []);
-            setMachinery(dbReport.machinery || []);
-          } else {
-            // No DB report, try localStorage
-            const localDraft = loadDraftLocally(reportDate);
-
-            if (localDraft) {
-              // Found local draft
-              setProjectName(localDraft.projectName || "");
-              setWeather(localDraft.weather || "Sunny");
-              setWeatherPeriod(localDraft.weatherPeriod || "AM");
-              setTemperature(localDraft.temperature || "");
-              setActivityToday(localDraft.activityToday || "");
-              setWorkPlanNextDay(localDraft.workPlanNextDay || "");
-              setManagementTeam(localDraft.managementTeam || []);
-              setWorkingTeam(localDraft.workingTeam || []);
-              setMaterials(localDraft.materials || []);
-              setMachinery(localDraft.machinery || []);
-            } else {
-              // No saved report: prefill from yesterday
-              const yesterday = new Date(reportDate!.getTime() - 86400000);
-              const prevData = loadDraftLocally(yesterday);
-
-              if (prevData) {
-                // Copy prev-day accumulated -> today's prev
-                const mapPrevFromAccum = (rows: ResourceRow[]) =>
-                  rows.map((r) => ({
-                    ...r,
-                    prev: r.accumulated,
-                    today: 0,
-                    accumulated: r.accumulated,
-                  }));
-
-                setManagementTeam(
-                  mapPrevFromAccum(prevData.managementTeam || [])
-                );
-                setWorkingTeam(mapPrevFromAccum(prevData.workingTeam || []));
-                setMaterials(mapPrevFromAccum(prevData.materials || []));
-                setMachinery(mapPrevFromAccum(prevData.machinery || []));
-
-                // Reset other fields for new day
-                setProjectName("");
-                setWeather("Sunny");
-                setWeatherPeriod("AM");
-                setTemperature("");
-                setActivityToday("");
-                setWorkPlanNextDay("");
-              }
-            }
-          }
-        } catch (e) {
-          console.error("Failed to load report for new date:", e);
-        }
-      };
-
-      loadTargetDate();
+      // Always start fresh for new date
+      setProjectName("");
+      setWeather("Sunny");
+      setWeatherPeriod("AM");
+      setTemperature("");
+      setActivityToday("");
+      setWorkPlanNextDay("");
+      setManagementTeam([]);
+      setWorkingTeam([]);
+      setMaterials([]);
+      setMachinery([]);
     }
 
     lastDateRef.current = newDateStr;
-  }, [reportDate, getReportData]);
+  }, [reportDate]);
 
   // Save draft to localStorage (silent mode for auto-save)
   const saveDraft = useCallback(
@@ -593,6 +532,7 @@ const Index = () => {
           (r.accumulated && r.accumulated > 0)
       )
       .map((r) => ({
+        id: r.id,
         description: r.description?.trim() || "",
         unit: r.unit || "",
         prev: r.prev || 0,
