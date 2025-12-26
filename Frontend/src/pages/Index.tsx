@@ -242,25 +242,23 @@ const Index = () => {
     loadInitialReport();
   }, []); // Only run on mount
 
-  // Handle date change: save current, load or carry forward for new date
+  // Handle date change: save current, carry forward between dates, load or clear on first selection
   useEffect(() => {
     const newDateStr = reportDate?.toISOString().slice(0, 10) || null;
     const prevDateStr = lastDateRef.current;
 
     if (prevDateStr && newDateStr && prevDateStr !== newDateStr) {
-      // Date changed: save current date draft locally
+      // Date changed: save current date draft locally and carry forward
       saveDraftLocally(new Date(prevDateStr), getReportData());
 
-      // Always carry forward from current state (previous date's data)
+      // Carry forward from previous date: save accumulated in prev, reset today to 0 for user input
       const prevReport = getReportData();
-
-      // Carry forward from previous date
       setProjectName(prevReport.projectName || "");
-      setWeather("Sunny");
-      setWeatherPeriod("AM");
-      setTemperature("");
-      setActivityToday("");
-      setWorkPlanNextDay("");
+      setWeather(prevReport.weather || "Sunny");
+      setWeatherPeriod(prevReport.weatherPeriod || "AM");
+      setTemperature(prevReport.temperature || "");
+      setActivityToday(prevReport.activityToday || "");
+      setWorkPlanNextDay(prevReport.workPlanNextDay || "");
       setManagementTeam(prevReport.managementTeam.map((r) => ({
         ...r,
         prev: r.accumulated,
@@ -285,6 +283,59 @@ const Index = () => {
         today: 0,
         accumulated: r.accumulated,
       })));
+    } else if (newDateStr && !prevDateStr) {
+      // First date selection: try to load existing data for this date, otherwise clear
+      const loadDataForDate = async () => {
+        try {
+          // Try to load from database first
+          const dbReport = await loadReportFromDB(reportDate);
+          if (dbReport) {
+            setProjectName(dbReport.projectName || "");
+            setWeather(dbReport.weather || "Sunny");
+            setWeatherPeriod(dbReport.weatherPeriod || "AM");
+            setTemperature(dbReport.temperature || "");
+            setActivityToday(dbReport.activityToday || "");
+            setWorkPlanNextDay(dbReport.workPlanNextDay || "");
+            setManagementTeam(dbReport.managementTeam || []);
+            setWorkingTeam(dbReport.workingTeam || []);
+            setMaterials(dbReport.materials || []);
+            setMachinery(dbReport.machinery || []);
+            return;
+          }
+
+          // Fallback to localStorage
+          const localDraft = loadDraftLocally(reportDate);
+          if (localDraft) {
+            setProjectName(localDraft.projectName || "");
+            setWeather(localDraft.weather || "Sunny");
+            setWeatherPeriod(localDraft.weatherPeriod || "AM");
+            setTemperature(localDraft.temperature || "");
+            setActivityToday(localDraft.activityToday || "");
+            setWorkPlanNextDay(localDraft.workPlanNextDay || "");
+            setManagementTeam(localDraft.managementTeam || []);
+            setWorkingTeam(localDraft.workingTeam || []);
+            setMaterials(localDraft.materials || []);
+            setMachinery(localDraft.machinery || []);
+            return;
+          }
+        } catch (e) {
+          console.error("Failed to load report for date:", e);
+        }
+
+        // No existing data: clear form to defaults
+        setProjectName("");
+        setWeather("Sunny");
+        setWeatherPeriod("AM");
+        setTemperature("");
+        setActivityToday("");
+        setWorkPlanNextDay("");
+        setManagementTeam([]);
+        setWorkingTeam([]);
+        setMaterials([]);
+        setMachinery([]);
+      };
+
+      loadDataForDate();
     }
 
     lastDateRef.current = newDateStr;
