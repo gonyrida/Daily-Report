@@ -135,7 +135,7 @@ const ResetPassword = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [tokenValid, setTokenValid] = useState<boolean | null>(null);
+  // const [tokenValid, setTokenValid] = useState<boolean | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -153,37 +153,37 @@ const ResetPassword = () => {
 
   const password = watch("password", "");
 
-  useEffect(() => {
-    if (!token) {
-      setError("Invalid reset link. No token provided.");
-      setTokenValid(false);
-      return;
-    }
+  // useEffect(() => {
+  //   if (!token) {
+  //     setError("Invalid reset link. No token provided.");
+  //     setTokenValid(false);
+  //     return;
+  //   }
 
-    // Verify token
-    const verifyToken = async () => {
-      try {
-        const response = await fetch("http://localhost:5000/api/auth/verify", {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+  //   // Verify token
+  //   const verifyToken = async () => {
+  //     try {
+  //       const response = await fetch("http://localhost:5000/api/auth/verify", {
+  //         method: "GET",
+  //         headers: {
+  //           Authorization: `Bearer ${token}`,
+  //         },
+  //       });
 
-        if (response.ok) {
-          setTokenValid(true);
-        } else {
-          setTokenValid(false);
-          setError("Invalid or expired reset link.");
-        }
-      } catch (err) {
-        setTokenValid(false);
-        setError("Failed to verify reset link.");
-      }
-    };
+  //       if (response.ok) {
+  //         setTokenValid(true);
+  //       } else {
+  //         setTokenValid(false);
+  //         setError("Invalid or expired reset link.");
+  //       }
+  //     } catch (err) {
+  //       setTokenValid(false);
+  //       setError("Failed to verify reset link.");
+  //     }
+  //   };
 
-    verifyToken();
-  }, [token]);
+  //   verifyToken();
+  // }, [token]);
 
   const onSubmit = async (data: ResetPasswordForm) => {
     if (!token) {
@@ -205,7 +205,7 @@ const ResetPassword = () => {
           },
           body: JSON.stringify({
             token,
-            password: data.password,
+            newPassword: data.password,
           }),
         }
       );
@@ -230,44 +230,44 @@ const ResetPassword = () => {
     }
   };
 
-  if (tokenValid === false) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-        <Card className="w-full max-w-md">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center">
-              Invalid Link
-            </CardTitle>
-            <CardDescription className="text-center">
-              This password reset link is invalid or has expired.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="text-center space-y-4">
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-            <Button
-              onClick={() => navigate("/forgot-password")}
-              className="w-full"
-            >
-              Request New Reset Link
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  // if (tokenValid === false) {
+  //   return (
+  //     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+  //       <Card className="w-full max-w-md">
+  //         <CardHeader className="space-y-1">
+  //           <CardTitle className="text-2xl font-bold text-center">
+  //             Invalid Link
+  //           </CardTitle>
+  //           <CardDescription className="text-center">
+  //             This password reset link is invalid or has expired.
+  //           </CardDescription>
+  //         </CardHeader>
+  //         <CardContent className="text-center space-y-4">
+  //           <Alert variant="destructive">
+  //             <AlertDescription>{error}</AlertDescription>
+  //           </Alert>
+  //           <Button
+  //             onClick={() => navigate("/forgot-password")}
+  //             className="w-full"
+  //           >
+  //             Request New Reset Link
+  //           </Button>
+  //         </CardContent>
+  //       </Card>
+  //     </div>
+  //   );
+  // }
 
-  if (tokenValid === null) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <Loader2 className="mx-auto h-8 w-8 animate-spin" />
-          <p className="mt-2 text-sm text-gray-600">Verifying reset link...</p>
-        </div>
-      </div>
-    );
-  }
+  // if (tokenValid === null) {
+  //   return (
+  //     <div className="min-h-screen flex items-center justify-center bg-gray-50">
+  //       <div className="text-center">
+  //         <Loader2 className="mx-auto h-8 w-8 animate-spin" />
+  //         <p className="mt-2 text-sm text-gray-600">Verifying reset link...</p>
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
