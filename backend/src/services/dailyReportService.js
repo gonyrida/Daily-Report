@@ -13,24 +13,20 @@ const getAllReports = async () => {
 const getReportByDate = async (projectName, reportDate) => {
   // Create date range for the entire day
   const inputDate = new Date(reportDate);
-  const startOfDay = new Date(
-    inputDate.getFullYear(),
-    inputDate.getMonth(),
-    inputDate.getDate(),
-    0,
-    0,
-    0,
-    0
-  );
-  const endOfDay = new Date(
-    inputDate.getFullYear(),
-    inputDate.getMonth(),
-    inputDate.getDate(),
-    23,
-    59,
-    59,
-    999
-  );
+
+  const startOfDay = new Date(Date.UTC(
+    inputDate.getUTCFullYear(),
+    inputDate.getUTCMonth(),
+    inputDate.getUTCDate(),
+    0, 0, 0, 0
+  ));
+
+  const endOfDay = new Date(Date.UTC(
+    inputDate.getUTCFullYear(),
+    inputDate.getUTCMonth(),
+    inputDate.getUTCDate(),
+    23, 59, 59, 999
+  ));
 
   console.log("Searching for report with:", {
     projectName,
@@ -57,24 +53,20 @@ const getReportByDate = async (projectName, reportDate) => {
 const getReportByDateOnly = async (reportDate) => {
   // Create date range for the entire day
   const inputDate = new Date(reportDate);
-  const startOfDay = new Date(
-    inputDate.getFullYear(),
-    inputDate.getMonth(),
-    inputDate.getDate(),
-    0,
-    0,
-    0,
-    0
-  );
-  const endOfDay = new Date(
-    inputDate.getFullYear(),
-    inputDate.getMonth(),
-    inputDate.getDate(),
-    23,
-    59,
-    59,
-    999
-  );
+
+  const startOfDay = new Date(Date.UTC(
+    inputDate.getUTCFullYear(),
+    inputDate.getUTCMonth(),
+    inputDate.getUTCDate(),
+    0, 0, 0, 0
+  ));
+
+  const endOfDay = new Date(Date.UTC(
+    inputDate.getUTCFullYear(),
+    inputDate.getUTCMonth(),
+    inputDate.getUTCDate(),
+    23, 59, 59, 999
+  ));
 
   console.log("Searching for any report on date:", {
     startOfDay: startOfDay.toISOString(),
@@ -224,6 +216,19 @@ const createReport = async (reportData) => {
   if (!projectName || !reportDate) {
     throw new Error("projectName and reportDate are required");
   }
+
+  // Normalize the incoming reportDate to UTC Midnight
+  // This prevents the "Date Shift" when saving from different timezones
+  const d = new Date(reportDate);
+  const normalizedDate = new Date(Date.UTC(
+    d.getUTCFullYear(),
+    d.getUTCMonth(),
+    d.getUTCDate(),
+    0, 0, 0, 0
+  ));
+  
+  // Update the reportData with the clean UTC date
+  reportData.reportDate = normalizedDate;
 
   // Fetch the previous report for the same project
   const previousReport = await DailyReport.findOne({ projectName })
