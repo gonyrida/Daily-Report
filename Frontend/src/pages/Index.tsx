@@ -1,5 +1,3 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useToast } from "@/hooks/use-toast";
 import ReportHeader from "@/components/ReportHeader";
 import ProjectInfo from "@/components/ProjectInfo";
 import ActivitySection from "@/components/ActivitySection";
