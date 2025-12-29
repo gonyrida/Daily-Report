@@ -47,15 +47,20 @@ export const submitReportToDB = async (projectName: string, reportDate: Date) =>
 
 export const loadReportFromDB = async (reportDate: Date) => {
   try {
-    const dateStr = reportDate.toISOString().split("T")[0];
-    
-    // We use the helper we already moved here to keep it DRY
+    // FIX: Instead of toISOString(), manually build the YYYY-MM-DD string
+    // This ensures Dec 29 stays Dec 29 regardless of your timezone offset.
+    const year = reportDate.getFullYear();
+    const month = String(reportDate.getMonth() + 1).padStart(2, '0');
+    const day = String(reportDate.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`; 
+
     const headers = getAuthHeaders();
     
     if (!headers.Authorization) {
       throw new Error("No authentication token found. Please log in.");
     }
 
+    // Now this URL will correctly be .../date/2025-12-29
     const response = await fetch(`${API_BASE_URL}/date/${dateStr}`, {
       method: "GET",
       headers: headers

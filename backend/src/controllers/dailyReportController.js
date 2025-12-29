@@ -20,29 +20,22 @@ const createDailyReport = async (req, res) => {
   }
 };
 
-// Get report by date only (frontend uses this)
 const getReportByDate = async (req, res) => {
   try {
-    const { date } = req.params;
-
-    // If projectName is also in params, use both
+    const { date } = req.params; // e.g., "2025-12-29"
     const { projectName } = req.params;
+
+    // FIX: Force interpretation as UTC Midnight
+    const normalizedDate = new Date(`${date}T00:00:00.000Z`);
 
     let report;
     if (projectName) {
-      // Route: /project/:projectName/date/:date
-      report = await dailyReportService.getReportByDate(
-        projectName,
-        new Date(date)
-      );
+      report = await dailyReportService.getReportByDate(projectName, normalizedDate);
     } else {
-      // Route: /date/:date - just find by date
-      report = await dailyReportService.getReportByDateOnly(new Date(date));
+      report = await dailyReportService.getReportByDateOnly(normalizedDate);
     }
 
-    if (!report) {
-      return res.status(404).json({ message: "Report not found" });
-    }
+    if (!report) return res.status(404).json({ message: "Report not found" });
     res.json(report);
   } catch (error) {
     res.status(500).json({ error: error.message });
