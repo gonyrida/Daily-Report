@@ -67,12 +67,13 @@ const loadReportFromDB = async (reportDate: Date) => {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}` // send token to backend
-      }
+        Authorization: `Bearer ${token}`, // send token to backend
+      },
     });
 
+    // 404 is expected when no report exists for this date - return null silently
     if (response.status === 404) {
-      return null; // report not found
+      return null; // report not found - this is normal for new dates
     }
 
     if (!response.ok) {
@@ -81,7 +82,14 @@ const loadReportFromDB = async (reportDate: Date) => {
 
     return response.json(); // return report data
   } catch (err) {
-    console.error("Error loading report:", err);
+    // Only log errors that are not 404 (which is expected)
+    if (err instanceof Error && !err.message.includes("404")) {
+      console.error("Error loading report:", err);
+    }
+    // Re-throw only if it's not a handled 404
+    if (err instanceof Error && err.message.includes("404")) {
+      return null;
+    }
     throw err;
   }
 };
@@ -167,6 +175,15 @@ const Index = () => {
   // Track if initial load has happened
   const initialLoadDoneRef = useRef(false);
 
+  // Helper to ensure all rows have IDs (for data loaded from DB/localStorage)
+  const ensureRowIds = (rows: ResourceRow[]): ResourceRow[] => {
+    if (!rows || rows.length === 0) return [];
+    return rows.map((row) => ({
+      ...row,
+      id: row.id || crypto.randomUUID(), // Generate ID if missing
+    }));
+  };
+
   // Helper to get current report data
   const getReportData = useCallback(
     (): ReportData => ({
@@ -243,10 +260,10 @@ const Index = () => {
           }
           setActivityToday(dbReport.activityToday || "");
           setWorkPlanNextDay(dbReport.workPlanNextDay || "");
-          setManagementTeam(dbReport.managementTeam || []);
-          setWorkingTeam(dbReport.workingTeam || []);
-          setMaterials(dbReport.materials || []);
-          setMachinery(dbReport.machinery || []);
+          setManagementTeam(ensureRowIds(dbReport.managementTeam || []));
+          setWorkingTeam(ensureRowIds(dbReport.workingTeam || []));
+          setMaterials(ensureRowIds(dbReport.materials || []));
+          setMachinery(ensureRowIds(dbReport.machinery || []));
         } else {
           // Fallback to localStorage
           const localDraft = loadDraftLocally(reportDate);
@@ -283,10 +300,10 @@ const Index = () => {
             }
             setActivityToday(localDraft.activityToday || "");
             setWorkPlanNextDay(localDraft.workPlanNextDay || "");
-            setManagementTeam(localDraft.managementTeam || []);
-            setWorkingTeam(localDraft.workingTeam || []);
-            setMaterials(localDraft.materials || []);
-            setMachinery(localDraft.machinery || []);
+            setManagementTeam(ensureRowIds(localDraft.managementTeam || []));
+            setWorkingTeam(ensureRowIds(localDraft.workingTeam || []));
+            setMaterials(ensureRowIds(localDraft.materials || []));
+            setMachinery(ensureRowIds(localDraft.machinery || []));
           }
         }
       } catch (e) {
@@ -324,10 +341,10 @@ const Index = () => {
           }
           setActivityToday(localDraft.activityToday || "");
           setWorkPlanNextDay(localDraft.workPlanNextDay || "");
-          setManagementTeam(localDraft.managementTeam || []);
-          setWorkingTeam(localDraft.workingTeam || []);
-          setMaterials(localDraft.materials || []);
-          setMachinery(localDraft.machinery || []);
+          setManagementTeam(ensureRowIds(localDraft.managementTeam || []));
+          setWorkingTeam(ensureRowIds(localDraft.workingTeam || []));
+          setMaterials(ensureRowIds(localDraft.materials || []));
+          setMachinery(ensureRowIds(localDraft.machinery || []));
         }
       }
     };
@@ -380,10 +397,10 @@ const Index = () => {
             }
             setActivityToday(dbReport.activityToday || "");
             setWorkPlanNextDay(dbReport.workPlanNextDay || "");
-            setManagementTeam(dbReport.managementTeam || []);
-            setWorkingTeam(dbReport.workingTeam || []);
-            setMaterials(dbReport.materials || []);
-            setMachinery(dbReport.machinery || []);
+            setManagementTeam(ensureRowIds(dbReport.managementTeam || []));
+            setWorkingTeam(ensureRowIds(dbReport.workingTeam || []));
+            setMaterials(ensureRowIds(dbReport.materials || []));
+            setMachinery(ensureRowIds(dbReport.machinery || []));
           } else {
             // No DB report, try localStorage
             const localDraft = loadDraftLocally(reportDate);
@@ -417,10 +434,10 @@ const Index = () => {
               }
               setActivityToday(localDraft.activityToday || "");
               setWorkPlanNextDay(localDraft.workPlanNextDay || "");
-              setManagementTeam(localDraft.managementTeam || []);
-              setWorkingTeam(localDraft.workingTeam || []);
-              setMaterials(localDraft.materials || []);
-              setMachinery(localDraft.machinery || []);
+              setManagementTeam(ensureRowIds(localDraft.managementTeam || []));
+              setWorkingTeam(ensureRowIds(localDraft.workingTeam || []));
+              setMaterials(ensureRowIds(localDraft.materials || []));
+              setMachinery(ensureRowIds(localDraft.machinery || []));
             } else {
               // No saved report: prefill from yesterday
               const yesterday = new Date(reportDate!.getTime() - 86400000);
@@ -429,7 +446,7 @@ const Index = () => {
               if (prevData) {
                 // Copy prev-day accumulated -> today's prev
                 const mapPrevFromAccum = (rows: ResourceRow[]) =>
-                  rows.map((r) => ({
+                  ensureRowIds(rows).map((r) => ({
                     ...r,
                     prev: r.accumulated,
                     today: 0,
@@ -496,10 +513,10 @@ const Index = () => {
             }
             setActivityToday(dbReport.activityToday || "");
             setWorkPlanNextDay(dbReport.workPlanNextDay || "");
-            setManagementTeam(dbReport.managementTeam || []);
-            setWorkingTeam(dbReport.workingTeam || []);
-            setMaterials(dbReport.materials || []);
-            setMachinery(dbReport.machinery || []);
+            setManagementTeam(ensureRowIds(dbReport.managementTeam || []));
+            setWorkingTeam(ensureRowIds(dbReport.workingTeam || []));
+            setMaterials(ensureRowIds(dbReport.materials || []));
+            setMachinery(ensureRowIds(dbReport.machinery || []));
             return;
           }
 
@@ -533,10 +550,10 @@ const Index = () => {
             }
             setActivityToday(localDraft.activityToday || "");
             setWorkPlanNextDay(localDraft.workPlanNextDay || "");
-            setManagementTeam(localDraft.managementTeam || []);
-            setWorkingTeam(localDraft.workingTeam || []);
-            setMaterials(localDraft.materials || []);
-            setMachinery(localDraft.machinery || []);
+            setManagementTeam(ensureRowIds(localDraft.managementTeam || []));
+            setWorkingTeam(ensureRowIds(localDraft.workingTeam || []));
+            setMaterials(ensureRowIds(localDraft.materials || []));
+            setMachinery(ensureRowIds(localDraft.machinery || []));
             return;
           }
         } catch (e) {
@@ -925,7 +942,9 @@ const Index = () => {
       });
     } catch (e: unknown) {
       const errorMessage =
-        e instanceof Error ? e.message : "Could not submit report. Please try again.";
+        e instanceof Error
+          ? e.message
+          : "Could not submit report. Please try again.";
       toast({
         title: "Submission Failed",
         description: errorMessage,

@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const ResourceSchema = new mongoose.Schema(
   {
-    description: { type: String, required: true },
+    description: { type: String, default: "" },
     unit: { type: String, default: "" },
     prev: { type: Number, default: 0 },
     today: { type: Number, default: 0 },
@@ -25,17 +25,38 @@ const dailyReportSchema = new mongoose.Schema(
       required: true,
     },
 
+    // New format: separate AM/PM weather and temperature
+    weatherAM: {
+      type: String,
+      default: "",
+    },
+    weatherPM: {
+      type: String,
+      default: "",
+    },
+    tempAM: {
+      type: String,
+      default: "",
+    },
+    tempPM: {
+      type: String,
+      default: "",
+    },
+    currentPeriod: {
+      type: String,
+      enum: ["AM", "PM"],
+      default: "AM",
+    },
+    // Old format: backward compatibility (optional)
     weather: {
       type: String,
-      required: true,
+      required: false,
     },
-
     weatherPeriod: {
       type: String,
       enum: ["AM", "PM"],
-      required: true,
+      required: false,
     },
-
     temperature: {
       type: String,
       default: "",

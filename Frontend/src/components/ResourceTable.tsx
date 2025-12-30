@@ -1,4 +1,4 @@
-import { Plus, Trash2, ChevronLeft, X  } from "lucide-react";
+import { Plus, Trash2, ChevronLeft, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -84,7 +84,7 @@ const ResourceTable = ({
   useEffect(() => {
     // 🔹 Check row IDs
     if (rows && rows.length > 0) {
-      const rowIds = rows.map(row => row.id);
+      const rowIds = rows.map((row) => row.id);
       const uniqueRowIds = new Set(rowIds);
       if (uniqueRowIds.size !== rowIds.length) {
         console.warn("Duplicate row IDs found!", rows);
@@ -102,7 +102,7 @@ const ResourceTable = ({
     }
   }, [rows, dropdownOptions]);
 
-  const ids = rows.map(r => r.id);
+  const ids = rows.map((r) => r.id);
   const hasDuplicates = new Set(ids).size !== ids.length;
   if (hasDuplicates) {
     console.error(`Duplicate IDs found in ${title} table:`, ids);
@@ -162,132 +162,149 @@ const ResourceTable = ({
               </tr>
             ) : (
               <>
-                {rows.map((row) => ( // 1. Update the row map key
-                  <tr
-                    key={`${title}-${row.id}`} // Change from key={row.id}
-                    className="border-t border-table-border hover:bg-muted/30 transition-colors"
-                  >
-                    <td className="px-3 py-2">
-                      {useDropdown && dropdownOptions.length > 0 ? (
-                        !row.description ||
-                        !dropdownOptions.includes(row.description) ? (
-                          // If empty or custom value, show input field with back button
-                          <div className="flex items-center gap-1">
-                            <Input
+                {rows.map(
+                  (
+                    row // 1. Update the row map key
+                  ) => (
+                    <tr
+                      key={`${title}-${row.id}`} // Change from key={row.id}
+                      className="border-t border-table-border hover:bg-muted/30 transition-colors"
+                    >
+                      <td className="px-3 py-2">
+                        {useDropdown && dropdownOptions.length > 0 ? (
+                          !row.description ||
+                          !dropdownOptions.includes(row.description) ? (
+                            // If empty or custom value, show input field with back button
+                            <div className="flex items-center gap-1">
+                              <Input
+                                value={row.description}
+                                onChange={(e) =>
+                                  updateRow(
+                                    row.id,
+                                    "description",
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="Enter custom position..."
+                                className="border-0 bg-transparent focus-visible:ring-1"
+                                autoFocus
+                              />
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() =>
+                                  updateRow(
+                                    row.id,
+                                    "description",
+                                    dropdownOptions[0] || ""
+                                  )
+                                }
+                                className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 flex-shrink-0"
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            // Otherwise show dropdown
+                            <Select
                               value={row.description}
-                              onChange={(e) =>
-                                updateRow(row.id, "description", e.target.value)
+                              onValueChange={(value) =>
+                                updateRow(row.id, "description", value)
                               }
-                              placeholder="Enter custom position..."
-                              className="border-0 bg-transparent focus-visible:ring-1"
-                              autoFocus
-                            />
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() =>
-                                updateRow(
-                                  row.id,
-                                  "description",
-                                  dropdownOptions[0] || ""
-                                )
-                              }
-                              className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 flex-shrink-0"
                             >
-                              <X className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        ) : (
-                          // Otherwise show dropdown
-                          <Select
-                            value={row.description}
-                            onValueChange={(value) =>
-                              updateRow(row.id, "description", value)
-                            }
-                          >
-                            <SelectTrigger className="border-0 bg-transparent focus:ring-1">
-                              <SelectValue placeholder="Select position..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {dropdownOptions.map((option, index) => (
-                                <SelectItem 
-                                  key={`${title}-opt-${option}-${index}`} // Adds table title and index for safety
-                                  value={option}
+                              <SelectTrigger className="border-0 bg-transparent focus:ring-1">
+                                <SelectValue placeholder="Select position..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {dropdownOptions.map((option, index) => (
+                                  <SelectItem
+                                    key={`${title}-opt-${option}-${index}`} // Adds table title and index for safety
+                                    value={option}
+                                  >
+                                    {option}
+                                  </SelectItem>
+                                ))}
+                                <SelectItem
+                                  key="custom-entry"
+                                  value="__custom__"
                                 >
-                                  {option}
+                                  <span className="text-primary">
+                                    + Custom Entry
+                                  </span>
                                 </SelectItem>
-                              ))}
-                              <SelectItem key="custom-entry" value="__custom__">
-                                <span className="text-primary">+ Custom Entry</span>
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        )
-                      ) : (
-                        // Regular input for materials and machinery
-                        <Input
-                          value={row.description}
-                          onChange={(e) =>
-                            updateRow(row.id, "description", e.target.value)
-                          }
-                          placeholder="Enter description..."
-                          className="border-0 bg-transparent focus-visible:ring-1"
-                        />
+                              </SelectContent>
+                            </Select>
+                          )
+                        ) : (
+                          // Regular input for materials and machinery
+                          <Input
+                            value={row.description}
+                            onChange={(e) =>
+                              updateRow(row.id, "description", e.target.value)
+                            }
+                            placeholder="Enter description..."
+                            className="border-0 bg-transparent focus-visible:ring-1"
+                          />
+                        )}
+                      </td>
+                      {showUnit && (
+                        <td className="px-3 py-2">
+                          <Input
+                            value={row.unit || ""}
+                            onChange={(e) =>
+                              updateRow(row.id, "unit", e.target.value)
+                            }
+                            placeholder="Unit"
+                            className="border-0 bg-transparent text-center focus-visible:ring-1"
+                          />
+                        </td>
                       )}
-                    </td>
-                    {showUnit && (
                       <td className="px-3 py-2">
                         <Input
-                          value={row.unit || ""}
+                          type="number"
+                          value={row.prev || ""}
                           onChange={(e) =>
-                            updateRow(row.id, "unit", e.target.value)
+                            updateRow(
+                              row.id,
+                              "prev",
+                              Number(e.target.value) || 0
+                            )
                           }
-                          placeholder="Unit"
                           className="border-0 bg-transparent text-center focus-visible:ring-1"
                         />
                       </td>
-                    )}
-                    <td className="px-3 py-2">
-                      <Input
-                        type="number"
-                        value={row.prev || ""}
-                        onChange={(e) =>
-                          updateRow(row.id, "prev", Number(e.target.value) || 0)
-                        }
-                        className="border-0 bg-transparent text-center focus-visible:ring-1"
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <Input
-                        type="number"
-                        value={row.today || ""}
-                        onChange={(e) =>
-                          updateRow(
-                            row.id,
-                            "today",
-                            Number(e.target.value) || 0
-                          )
-                        }
-                        className="border-0 bg-transparent text-center focus-visible:ring-1"
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <div className="text-center font-semibold text-primary">
-                        {row.accumulated}
-                      </div>
-                    </td>
-                    <td className="px-2 py-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeRow(row.id)}
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
+                      <td className="px-3 py-2">
+                        <Input
+                          type="number"
+                          value={row.today || ""}
+                          onChange={(e) =>
+                            updateRow(
+                              row.id,
+                              "today",
+                              Number(e.target.value) || 0
+                            )
+                          }
+                          className="border-0 bg-transparent text-center focus-visible:ring-1"
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="text-center font-semibold text-primary">
+                          {row.accumulated}
+                        </div>
+                      </td>
+                      <td className="px-2 py-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeRow(row.id)}
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  )
+                )}
                 {/* 2. Update the Total Row key */}
                 <tr
                   key={`${title}-total-row`} // Change from key="total-row"

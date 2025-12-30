@@ -18,7 +18,7 @@ router.post("/", createDailyReport);
 router.post("/save", authenticateToken, saveOrUpdateReport);
 router.post("/submit", authenticateToken, submitReport); 
 
-router.get("/date/:date", getReportByDate);
-router.get("/project/:projectName/date/:date", getReportByDate);
+router.get("/date/:date", authenticateToken, getReportByDate);
+router.get("/project/:projectName/date/:date", authenticateToken, getReportByDate);
 
 module.exports = router;
