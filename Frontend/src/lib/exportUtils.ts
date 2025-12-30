@@ -457,413 +457,225 @@ export const exportToPDF = async (
 };
 
 export const exportToExcel = async (data: ReportData) => {
+  // Load the provided Excel template so the export matches the exact layout
+  const response = await fetch("/template.xlsx");
+  if (!response.ok) {
+    throw new Error("Unable to load Excel template");
+  }
+
+  const templateBuffer = await response.arrayBuffer();
   const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet("Daily Report");
+  await workbook.xlsx.load(templateBuffer);
 
-  // Load logos
-  let leftLogoBuffer: ArrayBuffer | null = null;
-  let rightLogoBuffer: ArrayBuffer | null = null;
-  try {
-    const leftLogoDataUrl = await loadImageDataUrl("/cacpm_logo.png");
-    const leftResponse = await fetch(leftLogoDataUrl);
-    leftLogoBuffer = await leftResponse.arrayBuffer();
-  } catch (e) {
-    console.warn("Failed to load left logo:", e);
-  }
-  try {
-    const rightLogoDataUrl = await loadImageDataUrl("/koica_logo.png");
-    const rightResponse = await fetch(rightLogoDataUrl);
-    rightLogoBuffer = await rightResponse.arrayBuffer();
-  } catch (e) {
-    console.warn("Failed to load right logo:", e);
-  }
+  const worksheet = workbook.getWorksheet("REPORT") || workbook.worksheets[0];
 
-  // Add logos
-  if (leftLogoBuffer) {
-    const leftImageId = workbook.addImage({
-      buffer: leftLogoBuffer,
-      extension: "png",
+  const safeNumber = (value: number | string | undefined) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const cloneStyle = (cell: ExcelJS.Cell) =>
+    JSON.parse(JSON.stringify(cell.style || {}));
+
+  const mergeIfNeeded = (range: string) => {
+    try {
+      worksheet.mergeCells(range);
+    } catch {
+      // ignore if already merged in template
+    }
+  };
+
+  const splitIntoRows = (text: string, maxRows: number, maxLen = 55) => {
+    if (!text) return Array(maxRows).fill("");
+
+    const lines: string[] = [];
+    text.split(/\r?\n/).forEach((rawLine) => {
+      const words = rawLine.split(/\s+/);
+      let current = "";
+      words.forEach((word) => {
+        const next = current ? `${current} ${word}` : word;
+        if (next.length > maxLen) {
+          if (current) lines.push(current);
+          current = word;
+        } else {
+          current = next;
+        }
+      });
+      if (current) lines.push(current);
+      if (lines.length >= maxRows) return;
     });
-    worksheet.addImage(leftImageId, {
-      tl: { col: 0, row: 0 },
-      ext: { width: 180, height: 50 },
-    });
-  }
-  if (rightLogoBuffer) {
-    const rightImageId = workbook.addImage({
-      buffer: rightLogoBuffer,
-      extension: "png",
-    });
-    worksheet.addImage(rightImageId, {
-      tl: { col: 8, row: 0 },
-      ext: { width: 120, height: 40 },
-    });
-  }
 
-  let currentRow = 3;
+    return Array.from({ length: maxRows }, (_, i) => lines[i] || "");
+  };
 
-  // Title
-  const titleRow = worksheet.getRow(currentRow);
-  titleRow.getCell(1).value = "DAILY REPORT";
-  titleRow.getCell(1).font = { size: 20, bold: true };
-  titleRow.getCell(1).alignment = { horizontal: "center" };
-  worksheet.mergeCells(currentRow, 1, currentRow, 10);
-  currentRow += 2;
+  const dateValue =
+    data.reportDate instanceof Date
+      ? data.reportDate
+      : data.reportDate
+      ? new Date(data.reportDate)
+      : undefined;
 
-  // Project Information
-  const projectHeaderRow = worksheet.getRow(currentRow);
-  projectHeaderRow.getCell(1).value = "Project Information";
-  projectHeaderRow.getCell(1).font = { bold: true };
-  worksheet.mergeCells(currentRow, 1, currentRow, 10);
-  currentRow++;
-
-  worksheet.getRow(currentRow).getCell(1).value = `Project Name: ${
-    data.projectName || "N/A"
+  // Header info
+  worksheet.getCell("B7").value = `Project Name : ${data.projectName || ""}`;
+  worksheet.getCell("B8").value = `Weather          : ${
+    data.weatherPeriod || ""
+  } ${data.weather || ""}`.trim();
+  worksheet.getCell("B9").value = `Temperature  : ${
+    data.temperature ? `${data.temperature} °C` : ""
   }`;
-  currentRow++;
-  worksheet.getRow(currentRow).getCell(1).value = `Report Date: ${formatDate(
-    data.reportDate
-  )}`;
-  currentRow++;
-  worksheet.getRow(currentRow).getCell(1).value = `Weather (${
-    data.weatherPeriod
-  }): ${data.weather} ${data.temperature ? `(${data.temperature}°C)` : ""}`;
-  currentRow += 2;
+  const dateCell = worksheet.getCell("I9");
+  dateCell.value = dateValue || null;
+  if (!dateCell.numFmt) {
+    dateCell.numFmt = "yyyy-mm-dd";
+  }
 
-  // Activities side by side with blue headers
-  const activityHeaderRow = worksheet.getRow(currentRow);
-  activityHeaderRow.getCell(1).value = "Working Activity Today";
-  activityHeaderRow.getCell(1).fill = {
-    type: "pattern",
-    pattern: "solid",
-    fgColor: { argb: "FF3498DB" },
-  };
-  activityHeaderRow.getCell(1).font = {
-    color: { argb: "FFFFFFFF" },
-    bold: true,
-  };
-  activityHeaderRow.getCell(6).value = "Work Plan for Next Day";
-  activityHeaderRow.getCell(6).fill = {
-    type: "pattern",
-    pattern: "solid",
-    fgColor: { argb: "FF3498DB" },
-  };
-  activityHeaderRow.getCell(6).font = {
-    color: { argb: "FFFFFFFF" },
-    bold: true,
-  };
-  worksheet.mergeCells(currentRow, 1, currentRow, 5);
-  worksheet.mergeCells(currentRow, 6, currentRow, 10);
-  currentRow++;
+  // Activities (10 available rows in the template)
+  const activityLines = splitIntoRows(data.activityToday || "", 10);
+  const planLines = splitIntoRows(data.workPlanNextDay || "", 10);
+  const baseActivityStyle = cloneStyle(worksheet.getCell("B12"));
+  const basePlanStyle = cloneStyle(worksheet.getCell("G12"));
 
-  const activityContentRow = worksheet.getRow(currentRow);
-  activityContentRow.getCell(1).value = data.activityToday || "N/A";
-  activityContentRow.getCell(6).value = data.workPlanNextDay || "N/A";
-  worksheet.mergeCells(currentRow, 1, currentRow, 5);
-  worksheet.mergeCells(currentRow, 6, currentRow, 10);
-  currentRow += 2;
+  for (let i = 0; i < 10; i++) {
+    const row = 12 + i;
+    const leftCell = worksheet.getCell(`B${row}`);
+    leftCell.style = { ...baseActivityStyle, alignment: { wrapText: true } };
+    leftCell.value = activityLines[i] || "";
 
-  // Resources Employed header
-  const resourcesHeaderRow = worksheet.getRow(currentRow);
-  resourcesHeaderRow.getCell(1).value = "Resources Employed";
-  resourcesHeaderRow.getCell(1).fill = {
-    type: "pattern",
-    pattern: "solid",
-    fgColor: { argb: "FF3498DB" },
-  };
-  resourcesHeaderRow.getCell(1).font = {
-    color: { argb: "FFFFFFFF" },
-    bold: true,
-  };
-  resourcesHeaderRow.getCell(1).alignment = { horizontal: "center" };
-  worksheet.mergeCells(currentRow, 1, currentRow, 10);
-  currentRow += 2;
+    const rightCell = worksheet.getCell(`G${row}`);
+    rightCell.style = { ...basePlanStyle, alignment: { wrapText: true } };
+    rightCell.value = planLines[i] || "";
+  }
 
-  // Management Team and Working Team side by side
-  const maxTeamRows = Math.max(
+  // Resource tables (Site Management / Working Team)
+  const startTeamRow = 25;
+  const baseTeamRows = 6;
+  const teamRowsNeeded = Math.max(
+    baseTeamRows,
     data.managementTeam.length,
     data.workingTeam.length
   );
 
-  // Sub-headers with blue background
-  const teamSubHeaderRow = worksheet.getRow(currentRow);
-  teamSubHeaderRow.getCell(1).value = "Site Management Team";
-  teamSubHeaderRow.getCell(1).fill = {
-    type: "pattern",
-    pattern: "solid",
-    fgColor: { argb: "FF3498DB" },
-  };
-  teamSubHeaderRow.getCell(1).font = {
-    color: { argb: "FFFFFFFF" },
-    bold: true,
-  };
-  teamSubHeaderRow.getCell(6).value = "Site Working Team";
-  teamSubHeaderRow.getCell(6).fill = {
-    type: "pattern",
-    pattern: "solid",
-    fgColor: { argb: "FF3498DB" },
-  };
-  teamSubHeaderRow.getCell(6).font = {
-    color: { argb: "FFFFFFFF" },
-    bold: true,
-  };
-  worksheet.mergeCells(currentRow, 1, currentRow, 5);
-  worksheet.mergeCells(currentRow, 6, currentRow, 10);
-  currentRow++;
-
-  // Column headers
-  const teamColumnHeaderRow = worksheet.getRow(currentRow);
-  teamColumnHeaderRow.getCell(1).value = "Description";
-  teamColumnHeaderRow.getCell(2).value = "Prev";
-  teamColumnHeaderRow.getCell(3).value = "Today";
-  teamColumnHeaderRow.getCell(4).value = "Accum";
-  teamColumnHeaderRow.getCell(6).value = "Description";
-  teamColumnHeaderRow.getCell(7).value = "Prev";
-  teamColumnHeaderRow.getCell(8).value = "Today";
-  teamColumnHeaderRow.getCell(9).value = "Accum";
-  teamColumnHeaderRow.font = { bold: true };
-  currentRow++;
-
-  // Data rows with alternating colors
-  for (let i = 0; i < maxTeamRows; i++) {
-    const row = worksheet.getRow(currentRow);
-    const mgmt = data.managementTeam[i] || {
-      description: "",
-      prev: "",
-      today: "",
-      accumulated: "",
-    };
-    const work = data.workingTeam[i] || {
-      description: "",
-      prev: "",
-      today: "",
-      accumulated: "",
-    };
-
-    row.getCell(1).value = mgmt.description || "";
-    row.getCell(2).value = mgmt.prev || "";
-    row.getCell(3).value = mgmt.today || "";
-    row.getCell(4).value = mgmt.accumulated || "";
-    row.getCell(6).value = work.description || "";
-    row.getCell(7).value = work.prev || "";
-    row.getCell(8).value = work.today || "";
-    row.getCell(9).value = work.accumulated || "";
-
-    if (i % 2 === 0) {
-      for (let col = 1; col <= 10; col++) {
-        row.getCell(col).fill = {
-          type: "pattern",
-          pattern: "solid",
-          fgColor: { argb: "FFF5F5F5" },
-        };
-      }
-    }
-    currentRow++;
+  // Insert extra rows if more data than template rows
+  if (teamRowsNeeded > baseTeamRows) {
+    const rowsToInsert = teamRowsNeeded - baseTeamRows;
+    worksheet.spliceRows(startTeamRow + baseTeamRows, 0, ...new Array(rowsToInsert).fill([]));
   }
 
-  // Totals for teams
-  const mgmtTotalPrev = data.managementTeam.reduce(
-    (sum, row) => sum + (Number(row.prev) || 0),
-    0
-  );
-  const mgmtTotalToday = data.managementTeam.reduce(
-    (sum, row) => sum + (Number(row.today) || 0),
-    0
-  );
-  const mgmtTotalAccum = data.managementTeam.reduce(
-    (sum, row) => sum + (Number(row.accumulated) || 0),
-    0
-  );
-  const workTotalPrev = data.workingTeam.reduce(
-    (sum, row) => sum + (Number(row.prev) || 0),
-    0
-  );
-  const workTotalToday = data.workingTeam.reduce(
-    (sum, row) => sum + (Number(row.today) || 0),
-    0
-  );
-  const workTotalAccum = data.workingTeam.reduce(
-    (sum, row) => sum + (Number(row.accumulated) || 0),
-    0
-  );
+  const totalRowIndex = startTeamRow + teamRowsNeeded;
 
-  const teamTotalRow = worksheet.getRow(currentRow);
-  teamTotalRow.getCell(1).value = "TOTAL";
-  teamTotalRow.getCell(2).value = mgmtTotalPrev;
-  teamTotalRow.getCell(3).value = mgmtTotalToday;
-  teamTotalRow.getCell(4).value = mgmtTotalAccum;
-  teamTotalRow.getCell(6).value = "TOTAL";
-  teamTotalRow.getCell(7).value = workTotalPrev;
-  teamTotalRow.getCell(8).value = workTotalToday;
-  teamTotalRow.getCell(9).value = workTotalAccum;
-  teamTotalRow.font = { bold: true };
-  for (let col = 1; col <= 10; col++) {
-    teamTotalRow.getCell(col).fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: "FFC0C0C0" },
-    };
+  // Preserve cell styles from the first data row
+  // Ensure description merges exist for all dynamic rows
+  for (let r = startTeamRow; r < totalRowIndex; r++) {
+    mergeIfNeeded(`B${r}:C${r}`);
+    mergeIfNeeded(`G${r}:H${r}`);
   }
-  currentRow += 2;
 
-  // Materials and Machinery side by side
-  const maxMaterialRows = Math.max(
+  for (let i = 0; i < teamRowsNeeded; i++) {
+    const rowIndex = startTeamRow + i;
+    const mgmt = data.managementTeam[i];
+    const work = data.workingTeam[i];
+
+    const setCell = (
+      address: string,
+      value: string | number | null,
+      styleCol: string
+    ) => {
+      const cell = worksheet.getCell(address);
+      cell.style = cloneStyle(worksheet.getCell(`${styleCol}${startTeamRow}`));
+      cell.value = value ?? "";
+    };
+
+    setCell(`B${rowIndex}`, mgmt?.description ?? "", "B");
+    setCell(`D${rowIndex}`, safeNumber(mgmt?.prev), "D");
+    setCell(`E${rowIndex}`, safeNumber(mgmt?.today), "E");
+    const leftAccum = worksheet.getCell(`F${rowIndex}`);
+    leftAccum.style = cloneStyle(worksheet.getCell(`F${startTeamRow}`));
+    leftAccum.value = { formula: `SUM(D${rowIndex}:E${rowIndex})` };
+
+    setCell(`G${rowIndex}`, work?.description ?? "", "G");
+    setCell(`I${rowIndex}`, safeNumber(work?.prev), "I");
+    setCell(`J${rowIndex}`, safeNumber(work?.today), "J");
+    const rightAccum = worksheet.getCell(`K${rowIndex}`);
+    rightAccum.style = cloneStyle(worksheet.getCell(`K${startTeamRow}`));
+    rightAccum.value = { formula: `SUM(I${rowIndex}:J${rowIndex})` };
+  }
+
+  // Total row (re-merge and re-point formulas)
+  mergeIfNeeded(`B${totalRowIndex}:C${totalRowIndex}`);
+  mergeIfNeeded(`G${totalRowIndex}:H${totalRowIndex}`);
+  const totalRow = worksheet.getRow(totalRowIndex);
+  totalRow.getCell("B").value = "TOTAL";
+  totalRow.getCell("G").value = "TOTAL";
+  totalRow.getCell("D").value = {
+    formula: `SUM(D${startTeamRow}:D${totalRowIndex - 1})`,
+  };
+  totalRow.getCell("E").value = {
+    formula: `SUM(E${startTeamRow}:E${totalRowIndex - 1})`,
+  };
+  totalRow.getCell("F").value = {
+    formula: `SUM(F${startTeamRow}:F${totalRowIndex - 1})`,
+  };
+  totalRow.getCell("I").value = {
+    formula: `SUM(I${startTeamRow}:I${totalRowIndex - 1})`,
+  };
+  totalRow.getCell("J").value = {
+    formula: `SUM(J${startTeamRow}:J${totalRowIndex - 1})`,
+  };
+  totalRow.getCell("K").value = { formula: `SUM(I${totalRowIndex}:J${totalRowIndex})` };
+
+  // Materials & Machinery table
+  const materialStartRow = 34; // first row below column headers
+  const materialRowsNeeded = Math.max(
     data.materials.length,
-    data.machinery.length
+    data.machinery.length,
+    1
   );
 
-  // Sub-headers with blue background
-  const materialSubHeaderRow = worksheet.getRow(currentRow);
-  materialSubHeaderRow.getCell(1).value = "Materials Deliveries";
-  materialSubHeaderRow.getCell(1).fill = {
-    type: "pattern",
-    pattern: "solid",
-    fgColor: { argb: "FF3498DB" },
-  };
-  materialSubHeaderRow.getCell(1).font = {
-    color: { argb: "FFFFFFFF" },
-    bold: true,
-  };
-  materialSubHeaderRow.getCell(6).value = "Machinery & Equipment";
-  materialSubHeaderRow.getCell(6).fill = {
-    type: "pattern",
-    pattern: "solid",
-    fgColor: { argb: "FF3498DB" },
-  };
-  materialSubHeaderRow.getCell(6).font = {
-    color: { argb: "FFFFFFFF" },
-    bold: true,
-  };
-  worksheet.mergeCells(currentRow, 1, currentRow, 5);
-  worksheet.mergeCells(currentRow, 6, currentRow, 10);
-  currentRow++;
-
-  // Column headers
-  const materialColumnHeaderRow = worksheet.getRow(currentRow);
-  materialColumnHeaderRow.getCell(1).value = "Description";
-  materialColumnHeaderRow.getCell(2).value = "Unit";
-  materialColumnHeaderRow.getCell(3).value = "Prev";
-  materialColumnHeaderRow.getCell(4).value = "Today";
-  materialColumnHeaderRow.getCell(5).value = "Accum";
-  materialColumnHeaderRow.getCell(6).value = "Description";
-  materialColumnHeaderRow.getCell(7).value = "Unit";
-  materialColumnHeaderRow.getCell(8).value = "Prev";
-  materialColumnHeaderRow.getCell(9).value = "Today";
-  materialColumnHeaderRow.getCell(10).value = "Accum";
-  materialColumnHeaderRow.font = { bold: true };
-  currentRow++;
-
-  // Data rows with alternating colors
-  for (let i = 0; i < maxMaterialRows; i++) {
-    const row = worksheet.getRow(currentRow);
-    const mat = data.materials[i] || {
-      description: "",
-      unit: "",
-      prev: "",
-      today: "",
-      accumulated: "",
-    };
-    const mach = data.machinery[i] || {
-      description: "",
-      unit: "",
-      prev: "",
-      today: "",
-      accumulated: "",
-    };
-
-    row.getCell(1).value = mat.description || "";
-    row.getCell(2).value = mat.unit || "";
-    row.getCell(3).value = mat.prev || "";
-    row.getCell(4).value = mat.today || "";
-    row.getCell(5).value = mat.accumulated || "";
-    row.getCell(6).value = mach.description || "";
-    row.getCell(7).value = mach.unit || "";
-    row.getCell(8).value = mach.prev || "";
-    row.getCell(9).value = mach.today || "";
-    row.getCell(10).value = mach.accumulated || "";
-
-    if (i % 2 === 0) {
-      for (let col = 1; col <= 10; col++) {
-        row.getCell(col).fill = {
-          type: "pattern",
-          pattern: "solid",
-          fgColor: { argb: "FFF5F5F5" },
-        };
-      }
-    }
-    currentRow++;
+  // Insert extra rows if needed (template has rows up to ~75)
+  const availableMaterialRows = worksheet.rowCount - materialStartRow + 1;
+  if (materialRowsNeeded > availableMaterialRows) {
+    const rowsToInsert = materialRowsNeeded - availableMaterialRows;
+    worksheet.spliceRows(materialStartRow + availableMaterialRows, 0, ...new Array(rowsToInsert).fill([]));
   }
 
-  // Totals for materials and machinery
-  const matTotalPrev = data.materials.reduce(
-    (sum, row) => sum + (Number(row.prev) || 0),
-    0
-  );
-  const matTotalToday = data.materials.reduce(
-    (sum, row) => sum + (Number(row.today) || 0),
-    0
-  );
-  const matTotalAccum = data.materials.reduce(
-    (sum, row) => sum + (Number(row.accumulated) || 0),
-    0
-  );
-  const machTotalPrev = data.machinery.reduce(
-    (sum, row) => sum + (Number(row.prev) || 0),
-    0
-  );
-  const machTotalToday = data.machinery.reduce(
-    (sum, row) => sum + (Number(row.today) || 0),
-    0
-  );
-  const machTotalAccum = data.machinery.reduce(
-    (sum, row) => sum + (Number(row.accumulated) || 0),
-    0
-  );
+  for (let i = 0; i < materialRowsNeeded; i++) {
+    const rowIndex = materialStartRow + i;
+    const mat = data.materials[i];
+    const mach = data.machinery[i];
 
-  const materialTotalRow = worksheet.getRow(currentRow);
-  materialTotalRow.getCell(1).value = "TOTAL";
-  materialTotalRow.getCell(3).value = matTotalPrev;
-  materialTotalRow.getCell(4).value = matTotalToday;
-  materialTotalRow.getCell(5).value = matTotalAccum;
-  materialTotalRow.getCell(6).value = "TOTAL";
-  materialTotalRow.getCell(8).value = machTotalPrev;
-  materialTotalRow.getCell(9).value = machTotalToday;
-  materialTotalRow.getCell(10).value = machTotalAccum;
-  materialTotalRow.font = { bold: true };
-  for (let col = 1; col <= 10; col++) {
-    materialTotalRow.getCell(col).fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: "FFC0C0C0" },
+    const setMatCell = (
+      col: string,
+      value: string | number | null,
+      styleCol: string
+    ) => {
+      const cell = worksheet.getCell(`${col}${rowIndex}`);
+      cell.style = cloneStyle(worksheet.getCell(`${styleCol}${materialStartRow}`));
+      cell.value = value ?? "";
     };
+
+    setMatCell("B", mat?.description ?? "", "B");
+    setMatCell("C", mat?.unit ?? "", "C");
+    setMatCell("D", safeNumber(mat?.prev), "D");
+    setMatCell("E", safeNumber(mat?.today), "E");
+    const matAccum =
+      mat?.accumulated ??
+      (mat ? safeNumber(mat.prev) + safeNumber(mat.today) : "");
+    setMatCell("F", matAccum, "F");
+
+    setMatCell("G", mach?.description ?? "", "G");
+    setMatCell("H", mach?.unit ?? "", "H");
+    setMatCell("I", safeNumber(mach?.prev), "I");
+    setMatCell("J", safeNumber(mach?.today), "J");
+    const machAccum =
+      mach?.accumulated ??
+      (mach ? safeNumber(mach.prev) + safeNumber(mach.today) : "");
+    setMatCell("K", machAccum, "K");
   }
-  currentRow += 2;
 
-  // Footer
-  const footerRow = worksheet.getRow(currentRow);
-  footerRow.getCell(1).value = `Generated on ${new Date().toLocaleString()}`;
-  footerRow.getCell(1).font = { size: 8, color: { argb: "FF808080" } };
-  footerRow.getCell(1).alignment = { horizontal: "center" };
-  worksheet.mergeCells(currentRow, 1, currentRow, 10);
-
-  // Set column widths
-  worksheet.columns = [
-    { width: 25 }, // Description
-    { width: 8 }, // Unit
-    { width: 8 }, // Prev
-    { width: 8 }, // Today
-    { width: 10 }, // Accum
-    { width: 25 }, // Description
-    { width: 8 }, // Unit
-    { width: 8 }, // Prev
-    { width: 8 }, // Today
-    { width: 10 }, // Accum
-  ];
-
-  // Save
   const fileName = `Daily_Report_${
     data.projectName?.replace(/\s+/g, "_") || "Report"
   }_${formatDate(data.reportDate).replace(/\s+/g, "_")}.xlsx`;
+
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
