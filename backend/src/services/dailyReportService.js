@@ -91,64 +91,28 @@ const getReportByDateOnly = async (reportDate) => {
  */
 const saveOrUpdateReport = async (reportData) => {
   const { projectName, reportDate } = reportData;
-
-  if (!projectName || !reportDate) {
-    throw new Error("projectName and reportDate are required");
-  }
-
-  // Ensure reportDate is a Date object
   const inputDate = new Date(reportDate);
-  const startOfDay = new Date(
-    inputDate.getFullYear(),
-    inputDate.getMonth(),
-    inputDate.getDate(),
-    0,
-    0,
-    0,
-    0
-  );
-  const endOfDay = new Date(
-    inputDate.getFullYear(),
-    inputDate.getMonth(),
-    inputDate.getDate(),
-    23,
-    59,
-    59,
-    999
-  );
 
-  console.log("Saving/Updating report for:", {
-    projectName,
-    date: inputDate.toISOString(),
-    startOfDay: startOfDay.toISOString(),
-    endOfDay: endOfDay.toISOString(),
-  });
+  // Set search window strictly in UTC
+  const startOfDay = new Date(inputDate);
+  startOfDay.setUTCHours(0, 0, 0, 0);
+
+  const endOfDay = new Date(inputDate);
+  endOfDay.setUTCHours(23, 59, 59, 999);
 
   let report = await DailyReport.findOne({
     projectName,
-    reportDate: {
-      $gte: startOfDay,
-      $lte: endOfDay,
-    },
+    reportDate: { $gte: startOfDay, $lte: endOfDay },
   });
 
   if (report) {
-    // Update existing report
-    console.log("Updating existing report:", report._id);
     report.set(reportData);
-    report.reportDate = inputDate;
+    report.reportDate = inputDate; // Normalized UTC date from controller
     await report.save();
   } else {
-    // Create new report with status 'draft'
-    console.log("Creating new report");
-    report = new DailyReport({
-      ...reportData,
-      reportDate: inputDate,
-      status: "draft",
-    });
+    report = new DailyReport({ ...reportData, reportDate: inputDate, status: "draft" });
     await report.save();
   }
-
   return report;
 };
 
@@ -157,37 +121,26 @@ const saveOrUpdateReport = async (reportData) => {
  * Marks the report as 'submitted'
  */
 const submitDailyReport = async (projectName, reportDate) => {
-  if (!projectName || !reportDate) {
-    throw new Error("projectName and reportDate are required");
-  }
+  // DEBUG 4: What is Mongoose actually about to save?
+  console.log("DEBUG BACKEND SERVICE: Saving to DB ->", { 
+    projectName, 
+    reportDate: reportDate.toISOString() 
+  });
 
-  // 1. Create a 24-hour window for the date provided
-  const inputDate = new Date(reportDate);
-  const startOfDay = new Date(inputDate);
-  startOfDay.setUTCHours(0, 0, 0, 0);
-
-  const endOfDay = new Date(inputDate);
-  endOfDay.setUTCHours(23, 59, 59, 999);
-
-  // 2. Search for reportDate within that window
+  // We use "upsert: true" so it creates the report if it's missing
   const report = await DailyReport.findOneAndUpdate(
-    {
-      projectName,
-      reportDate: {
-        $gte: startOfDay,
-        $lte: endOfDay,
-      },
+    { projectName, reportDate }, 
+    { 
+      status: 'submitted', 
+      submittedAt: new Date() 
     },
-    {
-      $set: {
-        status: "submitted",
-        submittedAt: new Date(),
-      }
-    },
-    { new: true }
+    { 
+      new: true,    // Return the updated document to the controller
+      upsert: true,  // Create it if it doesn't exist (prevents 404)
+      setDefaultsOnInsert: true
+    }
   );
-
-  console.log("Submit result:", report ? "✅ SUCCESS" : "❌ NOT FOUND");
+  
   return report;
 };
 

@@ -1,21 +1,24 @@
-// routes/dailyReportRoutes.js
 const express = require("express");
 const router = express.Router();
+
+// FIX: Destructure the specific function 'authenticateToken'
+const { authenticateToken } = require("../middleware/authMiddleware");
 
 const {
   getDailyReports,
   createDailyReport,
   getReportByDate,
   saveOrUpdateReport,
-  submitReport, // ← ADD THIS to your imports
+  submitReport,
 } = require("../controllers/dailyReportController");
 
-// These are now relative to /api/daily-reports
+// Use 'authenticateToken' instead of 'authMiddleware'
 router.get("/", getDailyReports);
 router.post("/", createDailyReport);
-router.post("/save", saveOrUpdateReport); // /api/daily-reports/save
-router.post("/submit", submitReport); // ← ADD THIS LINE
-router.get("/date/:date", getReportByDate); // /api/daily-reports/date/:date
+router.post("/save", authenticateToken, saveOrUpdateReport);
+router.post("/submit", authenticateToken, submitReport); 
+
+router.get("/date/:date", getReportByDate);
 router.get("/project/:projectName/date/:date", getReportByDate);
 
 module.exports = router;

@@ -28,7 +28,14 @@ export const saveReportToDB = async (reportData: any) => {
 };
 
 export const submitReportToDB = async (projectName: string, reportDate: Date) => {
-  const dateStr = reportDate.toISOString();
+  const year = reportDate.getFullYear();
+  const month = String(reportDate.getMonth() + 1).padStart(2, '0');
+  const day = String(reportDate.getDate()).padStart(2, '0');
+  const dateStr = `${year}-${month}-${day}`; 
+
+  // DEBUG 1: Verify what string we are sending
+  console.log("DEBUG FRONTEND: Sending to API ->", { projectName, dateStr });
+
   const response = await fetch(`${API_BASE_URL}/submit`, {
     method: "POST",
     headers: getAuthHeaders(),
