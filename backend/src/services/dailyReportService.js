@@ -161,33 +161,15 @@ const submitDailyReport = async (projectName, reportDate) => {
     throw new Error("projectName and reportDate are required");
   }
 
-  // Create date range for the entire day
+  // 1. Create a 24-hour window for the date provided
   const inputDate = new Date(reportDate);
-  const startOfDay = new Date(
-    inputDate.getFullYear(),
-    inputDate.getMonth(),
-    inputDate.getDate(),
-    0,
-    0,
-    0,
-    0
-  );
-  const endOfDay = new Date(
-    inputDate.getFullYear(),
-    inputDate.getMonth(),
-    inputDate.getDate(),
-    23,
-    59,
-    59,
-    999
-  );
+  const startOfDay = new Date(inputDate);
+  startOfDay.setUTCHours(0, 0, 0, 0);
 
-  console.log("Submitting report for:", {
-    projectName,
-    startOfDay: startOfDay.toISOString(),
-    endOfDay: endOfDay.toISOString(),
-  });
+  const endOfDay = new Date(inputDate);
+  endOfDay.setUTCHours(23, 59, 59, 999);
 
+  // 2. Search for reportDate within that window
   const report = await DailyReport.findOneAndUpdate(
     {
       projectName,
@@ -197,13 +179,15 @@ const submitDailyReport = async (projectName, reportDate) => {
       },
     },
     {
-      status: "submitted",
-      submittedAt: new Date(),
+      $set: {
+        status: "submitted",
+        submittedAt: new Date(),
+      }
     },
     { new: true }
   );
 
-  console.log("Submit result:", report ? "SUCCESS" : "NOT FOUND");
+  console.log("Submit result:", report ? "✅ SUCCESS" : "❌ NOT FOUND");
   return report;
 };
 
