@@ -1,4 +1,4 @@
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, ChevronLeft, X  } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -8,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Cancel } from "@radix-ui/react-alert-dialog";
 
 export interface ResourceRow {
   id: string;
@@ -52,7 +53,7 @@ const ResourceTable = ({
   const removeRow = (id: string) => {
     setRows(rows.filter((row) => row.id !== id));
   };
- 
+
   const updateRow = (
     id: string,
     field: keyof ResourceRow,
@@ -140,19 +141,34 @@ const ResourceTable = ({
                   >
                     <td className="px-3 py-2">
                       {useDropdown && dropdownOptions.length > 0 ? (
-                        // Show dropdown if enabled and has options
-                        row.description &&
+                        !row.description ||
                         !dropdownOptions.includes(row.description) ? (
-                          // If custom value, show input field
-                          <Input
-                            value={row.description}
-                            onChange={(e) =>
-                              updateRow(row.id, "description", e.target.value)
-                            }
-                            placeholder="Enter custom position..."
-                            className="border-0 bg-transparent focus-visible:ring-1"
-                            autoFocus
-                          />
+                          // If empty or custom value, show input field with back button
+                          <div className="flex items-center gap-1">
+                            <Input
+                              value={row.description}
+                              onChange={(e) =>
+                                updateRow(row.id, "description", e.target.value)
+                              }
+                              placeholder="Enter custom position..."
+                              className="border-0 bg-transparent focus-visible:ring-1"
+                              autoFocus
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() =>
+                                updateRow(
+                                  row.id,
+                                  "description",
+                                  dropdownOptions[0] || ""
+                                )
+                              }
+                              className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 flex-shrink-0"
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
                         ) : (
                           // Otherwise show dropdown
                           <Select
