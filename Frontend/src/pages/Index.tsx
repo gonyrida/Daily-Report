@@ -112,19 +112,12 @@ const Index = () => {
 
   // Project Info
   const [projectName, setProjectName] = useState("");
-<<<<<<< HEAD
   const [reportDate, setReportDate] = useState<Date | undefined>(new Date());
   const [weatherAM, setWeatherAM] = useState("");
   const [weatherPM, setWeatherPM] = useState("");
   const [tempAM, setTempAM] = useState("");
   const [tempPM, setTempPM] = useState("");
   const [currentPeriod, setCurrentPeriod] = useState<"AM" | "PM">("AM");
-=======
-  const [reportDate, setReportDate] = useState<Date | undefined>(undefined);
-  const [weather, setWeather] = useState("Sunny");
-  const [weatherPeriod, setWeatherPeriod] = useState<"AM" | "PM">("AM");
-  const [temperature, setTemperature] = useState("");
->>>>>>> 9e28d6c (update calendar date)
 
   // Activities
   const [activityToday, setActivityToday] = useState("");
@@ -152,18 +145,11 @@ const Index = () => {
   const getReportData = useCallback(
     (): ReportData => ({
       projectName,
-<<<<<<< HEAD
       reportDate: reportDate?.toISOString() || null,
       weatherAM,
       weatherPM,
       tempAM,
       tempPM,
-=======
-      reportDate: (reportDate || new Date()).toISOString(),
-      weather,
-      weatherPeriod,
-      temperature,
->>>>>>> 9e28d6c (update calendar date)
       activityToday,
       workPlanNextDay,
       managementTeam,

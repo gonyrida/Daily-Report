@@ -79,11 +79,11 @@ const ProjectInfo = ({
   const tempSummary = `Temperature  : AM ${tempAM ? `${tempAM}°C` : ""}    |  PM ${tempPM ? `${tempPM}°C` : ""}`;
   const [isOpen, setIsOpen] = useState(false);
 
-  const weatherOptions = [
-    { value: "Sunny", icon: Sun },
-    { value: "Cloudy", icon: Cloud },
-    { value: "Rainy", icon: CloudRain },
-  ];
+  // const weatherOptions = [
+  //   { value: "Sunny", icon: Sun },
+  //   { value: "Cloudy", icon: Cloud },
+  //   { value: "Rainy", icon: CloudRain },
+  // ];
 
   return (
     <div className="section-card p-6 animate-fade-in">
