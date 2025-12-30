@@ -73,12 +73,18 @@ export const loadReportFromDB = async (reportDate: Date) => {
       headers: headers
     });
 
+    const data = await response.json();
+    // If the backend is sending the new { report, historyMap } structure:
+    if (data && typeof data === 'object' && 'report' in data) {
+      return data; // Return the whole package
+    }
+
     if (response.status === 404) return null;
     if (!response.ok) {
       throw new Error(`Failed to load report: ${response.statusText}`);
     }
 
-    return response.json();
+    return data; // Fallback for older data structures
   } catch (err) {
     console.error("Error loading report:", err);
     throw err;

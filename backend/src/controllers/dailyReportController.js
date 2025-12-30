@@ -29,34 +29,24 @@ const createDailyReport = async (req, res) => {
 
 const getReportByDate = async (req, res) => {
   try {
-    // 1. Extract what's available from params
     const { date, projectName } = req.params;
-    
-    // 2. IMPORTANT: Use userId from the token (aligned with your middleware)
     const userId = req.user.userId; 
-
-    // 3. Date Normalization (ensures YYYY-MM-DD match)
     const datePart = new Date(date).toISOString().split('T')[0];
     const normalizedDate = new Date(`${datePart}T00:00:00.000Z`);
 
-    let report;
+    // 1. Try to find the existing report
+    const report = await dailyReportService.getReportByDate(projectName, normalizedDate, userId);
 
-    if (projectName) {
-      // If we have a project name, use the specific finder
-      report = await dailyReportService.getReportByDate(projectName, normalizedDate, userId);
-    } else {
-      // If we ONLY have a date (like your frontend call), use the DateOnly finder
-      // This is the "Long Run" fix for loading the last worked-on project for that day
-      report = await dailyReportService.getReportByDateOnly(normalizedDate, userId);
-    }
+    // 2. ALWAYS fetch the history map, even if the report doesn't exist yet!
+    // This allows the Frontend to show "Previous: 500" for a new day.
+    const history = await dailyReportService.getAccumulatedTotals(userId, projectName, normalizedDate);
 
-    if (!report) {
-      return res.status(404).json({ message: "No report found for this date" });
-    }
-
-    res.json(report);
+    // 3. Return a package instead of just the report
+    res.json({
+      report: report || null, // No more 404! Just return null if empty
+      historyMap: history     // e.g., { "Cement": 500, "Worker": 10 }
+    });
   } catch (error) {
-    console.error("Fetch Error:", error);
     res.status(500).json({ error: error.message });
   }
 };

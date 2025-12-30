@@ -1,3 +1,4 @@
+// backend\src\services\dailyReportService.js
 const DailyReport = require("../models/dailyReportModel.js");
 
 /**
@@ -87,38 +88,83 @@ const getReportByDateOnly = async (reportDate, userId) => { // Added userId
  * If a report exists for the same project + date + user, update it
  */
 const saveOrUpdateReport = async (reportData) => {
-  // 1. Extract 'user' from reportData (passed from controller)
-  const { projectName, reportDate, user } = reportData; 
-  const inputDate = new Date(reportDate);
+  const { projectName, reportDate, user } = reportData;
+  const d = new Date(reportDate);
+  const normalizedDate = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0));
 
-  // Set search window strictly in UTC (Timezone proofing)
-  const startOfDay = new Date(inputDate);
-  startOfDay.setUTCHours(0, 0, 0, 0);
+  // 1. Get the "Historical Truth" (Same logic we used in createReport)
+  const history = await DailyReport.aggregate([
+    { 
+      $match: { 
+        user: new mongoose.Types.ObjectId(user), 
+        projectName, 
+        reportDate: { $lt: normalizedDate } 
+      } 
+    },
+    {
+      $facet: {
+        materials: [
+          { $unwind: "$materials" },
+          { $group: { _id: "$materials.description", total: { $sum: "$materials.today" } } }
+        ],
+        machinery: [
+          { $unwind: "$machinery" },
+          { $group: { _id: "$machinery.description", total: { $sum: "$machinery.today" } } }
+        ],
+        workingTeam: [
+          { $unwind: "$workingTeam" },
+          { $group: { _id: "$workingTeam.description", total: { $sum: "$workingTeam.today" } } }
+        ],
+        managementTeam: [
+          { $unwind: "$managementTeam" },
+          { $group: { _id: "$managementTeam.description", total: { $sum: "$managementTeam.today" } } }
+        ]
+      }
+    }
+  ]);
 
-  const endOfDay = new Date(inputDate);
-  endOfDay.setUTCHours(23, 59, 59, 999);
+  // This creates 4 clean maps for your frontend
+  const formatMap = (arr) => arr.reduce((acc, curr) => ({ ...acc, [curr._id]: curr.total }), {});
 
-  // 2. FIX: Include 'user' in the search so we don't overwrite others
-  let report = await DailyReport.findOne({
-    user, // <--- The Leak Plug
-    projectName,
-    reportDate: { $gte: startOfDay, $lte: endOfDay },
+  const historyMaps = {
+    materials: formatMap(history[0].materials),
+    machinery: formatMap(history[0].machinery),
+    workingTeam: formatMap(history[0].workingTeam),
+    managementTeam: formatMap(history[0].managementTeam),
+  };
+
+  const processArray = (items = []) => items.map(item => {
+    const prev = historyMap[item.description] || 0;
+    const today = Number(item.today) || 0;
+    return { ...item, prev, accumulated: prev + today };
   });
 
+  // 2. Find existing or create new
+  let report = await DailyReport.findOne({
+    user,
+    projectName,
+    reportDate: { 
+      $gte: new Date(normalizedDate).setUTCHours(0,0,0,0), 
+      $lte: new Date(normalizedDate).setUTCHours(23,59,59,999) 
+    },
+  });
+
+  const updatedData = {
+    ...reportData,
+    reportDate: normalizedDate,
+    managementTeam: processArray(reportData.managementTeam),
+    workingTeam: processArray(reportData.workingTeam),
+    materials: processArray(reportData.materials),
+    machinery: processArray(reportArray.machinery),
+  };
+
   if (report) {
-    report.set(reportData);
-    report.reportDate = inputDate; 
-    await report.save();
+    report.set(updatedData);
   } else {
-    // 3. Ensure the new report is tied to the correct user
-    report = new DailyReport({ 
-      ...reportData, 
-      reportDate: inputDate, 
-      status: "draft" 
-    });
-    await report.save();
+    report = new DailyReport({ ...updatedData, status: "draft" });
   }
-  return report;
+
+  return await report.save();
 };
 
 /**
@@ -160,57 +206,65 @@ const submitDailyReport = async (projectName, reportDate, userId) => { // Added 
  * Create a new report with rolling totals (Scoped to User)
  */
 const createReport = async (reportData) => {
-  // 1. Extract 'user' from reportData (passed from controller)
   const { projectName, reportDate, user } = reportData;
-
-  if (!projectName || !reportDate || !user) {
-    throw new Error("projectName, reportDate, and user are required");
-  }
-
-  // Your excellent UTC normalization (Keep this!)
   const d = new Date(reportDate);
-  const normalizedDate = new Date(Date.UTC(
-    d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0
-  ));
-  
-  reportData.reportDate = normalizedDate;
+  const normalizedDate = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0));
 
-  // 2. THE CRITICAL FIX: Fetch the previous report ONLY for this user
-  // Without 'user', User B inherits User A's data totals!
-  const previousReport = await DailyReport.findOne({ 
-    projectName, 
-    user 
-  }).sort({ reportDate: -1 });
+  // 1. THE MATH ENGINE: Calculate the ACTUAL sum of history for this user
+  const history = await DailyReport.aggregate([
+    { 
+      $match: { 
+        user: new mongoose.Types.ObjectId(user), 
+        projectName, 
+        reportDate: { $lt: normalizedDate } 
+      } 
+    },
+    {
+      $facet: {
+        materials: [
+          { $unwind: "$materials" },
+          { $group: { _id: "$materials.description", total: { $sum: "$materials.today" } } }
+        ],
+        machinery: [
+          { $unwind: "$machinery" },
+          { $group: { _id: "$machinery.description", total: { $sum: "$machinery.today" } } }
+        ],
+        workingTeam: [
+          { $unwind: "$workingTeam" },
+          { $group: { _id: "$workingTeam.description", total: { $sum: "$workingTeam.today" } } }
+        ],
+        managementTeam: [
+          { $unwind: "$managementTeam" },
+          { $group: { _id: "$managementTeam.description", total: { $sum: "$managementTeam.today" } } }
+        ]
+      }
+    }
+  ]);
 
-  // Helper remains the same (it just processes the data found)
-  const calculateRollingTotals = (newItems, previousItems = []) => {
-    return newItems.map((item) => {
-      const prevItem = previousItems.find(
-        (p) => p.description === item.description
-      );
-      const prevAccum = prevItem?.accumulated || 0;
-      const today = Number(item.today) || 0;
-      return {
-        ...item,
-        prev: prevAccum,
-        accumulated: prevAccum + today,
-      };
-    });
+  // This creates 4 clean maps for your frontend
+  const formatMap = (arr) => arr.reduce((acc, curr) => ({ ...acc, [curr._id]: curr.total }), {});
+
+  const historyMaps = {
+    materials: formatMap(history[0].materials),
+    machinery: formatMap(history[0].machinery),
+    workingTeam: formatMap(history[0].workingTeam),
+    managementTeam: formatMap(history[0].managementTeam),
   };
 
-  // Process all arrays (Management, Working Team, Materials, Machinery)
-  const managementTeam = calculateRollingTotals(reportData.managementTeam || [], previousReport?.managementTeam || []);
-  const workingTeam = calculateRollingTotals(reportData.workingTeam || [], previousReport?.workingTeam || []);
-  const materials = calculateRollingTotals(reportData.materials || [], previousReport?.materials || []);
-  const machinery = calculateRollingTotals(reportData.machinery || [], previousReport?.machinery || []);
+  // 2. APPLY TOTALS: Use the historyMap to ensure today's 'prev' is always correct
+  const processArray = (items = []) => items.map(item => {
+    const prev = historyMap[item.description] || 0;
+    const today = Number(item.today) || 0;
+    return { ...item, prev, accumulated: prev + today };
+  });
 
-  // 3. Create the new report tied to the correct user
   const report = new DailyReport({
     ...reportData,
-    managementTeam,
-    workingTeam,
-    materials,
-    machinery,
+    reportDate: normalizedDate,
+    managementTeam: processArray(reportData.managementTeam),
+    workingTeam: processArray(reportData.workingTeam),
+    materials: processArray(reportData.materials),
+    machinery: processArray(reportData.machinery),
     status: "draft",
   });
 

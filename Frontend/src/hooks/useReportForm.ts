@@ -142,20 +142,46 @@ export const useReportForm = () => {
       // First selection logic
       const loadDataForDate = async () => {
         try {
-          const dbReport = await loadReportFromDB(reportDate!);
-          if (dbReport) {
-            fillForm(dbReport);
+          // Keep a reference to the date the user ACTUALLY clicked
+          const clickedDate = reportDate; 
+
+          const data = await loadReportFromDB(clickedDate!);
+          
+          if (data?.report) {
+            fillForm(data.report);
+            // Ensure the date stays as the report's actual date
             return;
           }
-          const localDraft = loadDraftLocally(reportDate!);
-          if (localDraft) {
-            fillForm(localDraft);
+
+          if (data?.historyMap) {
+            clearForm(); 
+            
+            // CRITICAL FIX: After clearForm() wipes everything, 
+            // put the clicked date BACK so it doesn't revert to today or yesterday
+            setReportDate(clickedDate); 
+
+            const generateRows = (history: Record<string, number> | undefined) => {
+              if (!history) return [];
+              return Object.entries(history).map(([description, total]) => ({
+                id: crypto.randomUUID(), 
+                description,
+                unit: "", 
+                prev: total,
+                today: 0,
+                accumulated: total,
+                remarks: "" 
+              }));
+            };
+
+            setMaterials(generateRows(data.historyMap.materials));
+            setMachinery(generateRows(data.historyMap.machinery));
+            setWorkingTeam(generateRows(data.historyMap.workingTeam));
+            setManagementTeam(generateRows(data.historyMap.managementTeam));
             return;
           }
         } catch (e) {
-          console.error("Failed to load report for date:", e);
+          console.error("Error:", e);
         }
-        clearForm();
       };
       loadDataForDate();
     }
