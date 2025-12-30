@@ -14,6 +14,13 @@ const ResourceSchema = new mongoose.Schema(
 
 const dailyReportSchema = new mongoose.Schema(
   {
+    // 1. ADD THE USER REFERENCE
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    
     projectName: {
       type: String,
       required: true,
@@ -72,8 +79,9 @@ const dailyReportSchema = new mongoose.Schema(
   }
 );
 
-// Add index for faster queries
-dailyReportSchema.index({ projectName: 1, reportDate: 1 });
+// 2. THE SCALABILITY FIX: Update the index to include the User
+// This makes the combination of User + Date + Project unique.
+dailyReportSchema.index({ user: 1, reportDate: 1, projectName: 1 }, { unique: true });
 
 const DailyReport = mongoose.model("DailyReport", dailyReportSchema);
 

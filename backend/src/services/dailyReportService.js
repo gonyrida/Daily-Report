@@ -1,17 +1,18 @@
 const DailyReport = require("../models/dailyReportModel.js");
 
 /**
- * Get all reports
+ * Get all reports - SCOPED TO USER
  */
-const getAllReports = async () => {
-  return await DailyReport.find().sort({ reportDate: -1 });
+const getAllReports = async (userId) => {
+  // Fix: Only find reports where the user field matches
+  return await DailyReport.find({ user: userId }).sort({ reportDate: -1 });
 };
 
 /**
- * Get a single report by projectName + date
+ * Get a single report by projectName + date + user
  */
-const getReportByDate = async (projectName, reportDate) => {
-  // Create date range for the entire day
+const getReportByDate = async (projectName, reportDate, userId) => {
+  // Create date range for the entire day (Your Timezone Fix stays!)
   const inputDate = new Date(reportDate);
 
   const startOfDay = new Date(Date.UTC(
@@ -28,13 +29,9 @@ const getReportByDate = async (projectName, reportDate) => {
     23, 59, 59, 999
   ));
 
-  console.log("Searching for report with:", {
-    projectName,
-    startOfDay: startOfDay.toISOString(),
-    endOfDay: endOfDay.toISOString(),
-  });
-
+  // FIX: Include userId in the query so User B can't find User A's data
   const report = await DailyReport.findOne({
+    user: userId, // <--- THE LEAK PLUG
     projectName,
     reportDate: {
       $gte: startOfDay,
@@ -42,16 +39,16 @@ const getReportByDate = async (projectName, reportDate) => {
     },
   });
 
-  console.log("Found report:", report ? "YES" : "NO");
+  console.log(`Found report for user ${userId}:`, report ? "YES" : "NO");
   return report;
 };
 
 /**
- * Get a report by date only (no projectName required)
+ * Get a report by date only (Scoped to User)
  * Used when loading report for a specific date
  */
-const getReportByDateOnly = async (reportDate) => {
-  // Create date range for the entire day
+const getReportByDateOnly = async (reportDate, userId) => { // Added userId
+  // Create date range for the entire day (Your Timezone Fix stays!)
   const inputDate = new Date(reportDate);
 
   const startOfDay = new Date(Date.UTC(
@@ -68,12 +65,13 @@ const getReportByDateOnly = async (reportDate) => {
     23, 59, 59, 999
   ));
 
-  console.log("Searching for any report on date:", {
+  console.log(`Searching for user ${userId}'s report on date:`, {
     startOfDay: startOfDay.toISOString(),
-    endOfDay: endOfDay.toISOString(),
   });
 
+  // FIX: Added 'user: userId' to the filter
   const report = await DailyReport.findOne({
+    user: userId,
     reportDate: {
       $gte: startOfDay,
       $lte: endOfDay,
@@ -85,58 +83,72 @@ const getReportByDateOnly = async (reportDate) => {
 };
 
 /**
- * Save or update a report
- * If a report exists for the same project + date, update it
- * Otherwise, create a new report
+ * Save or update a report (Scoped to User)
+ * If a report exists for the same project + date + user, update it
  */
 const saveOrUpdateReport = async (reportData) => {
-  const { projectName, reportDate } = reportData;
+  // 1. Extract 'user' from reportData (passed from controller)
+  const { projectName, reportDate, user } = reportData; 
   const inputDate = new Date(reportDate);
 
-  // Set search window strictly in UTC
+  // Set search window strictly in UTC (Timezone proofing)
   const startOfDay = new Date(inputDate);
   startOfDay.setUTCHours(0, 0, 0, 0);
 
   const endOfDay = new Date(inputDate);
   endOfDay.setUTCHours(23, 59, 59, 999);
 
+  // 2. FIX: Include 'user' in the search so we don't overwrite others
   let report = await DailyReport.findOne({
+    user, // <--- The Leak Plug
     projectName,
     reportDate: { $gte: startOfDay, $lte: endOfDay },
   });
 
   if (report) {
     report.set(reportData);
-    report.reportDate = inputDate; // Normalized UTC date from controller
+    report.reportDate = inputDate; 
     await report.save();
   } else {
-    report = new DailyReport({ ...reportData, reportDate: inputDate, status: "draft" });
+    // 3. Ensure the new report is tied to the correct user
+    report = new DailyReport({ 
+      ...reportData, 
+      reportDate: inputDate, 
+      status: "draft" 
+    });
     await report.save();
   }
   return report;
 };
 
 /**
- * Submit a report
+ * Submit a report (Scoped to User)
  * Marks the report as 'submitted'
  */
-const submitDailyReport = async (projectName, reportDate) => {
-  // DEBUG 4: What is Mongoose actually about to save?
-  console.log("DEBUG BACKEND SERVICE: Saving to DB ->", { 
+const submitDailyReport = async (projectName, reportDate, userId) => { // Added userId
+  // DEBUG 4: Scoped log
+  console.log(`DEBUG BACKEND SERVICE: Submitting for User ${userId} ->`, { 
     projectName, 
     reportDate: reportDate.toISOString() 
   });
 
-  // We use "upsert: true" so it creates the report if it's missing
+  // FIX: Include 'user: userId' in the filter AND the update
   const report = await DailyReport.findOneAndUpdate(
-    { projectName, reportDate }, 
     { 
-      status: 'submitted', 
-      submittedAt: new Date() 
+      projectName, 
+      reportDate, 
+      user: userId // <--- Prevents submitting someone else's report
+    }, 
+    { 
+      $set: {
+        status: 'submitted', 
+        submittedAt: new Date(),
+        user: userId // <--- Ensures user ID is set if this is an upsert
+      }
     },
     { 
-      new: true,    // Return the updated document to the controller
-      upsert: true,  // Create it if it doesn't exist (prevents 404)
+      new: true,
+      upsert: true,
       setDefaultsOnInsert: true
     }
   );
@@ -145,33 +157,32 @@ const submitDailyReport = async (projectName, reportDate) => {
 };
 
 /**
- * Create a new report with rolling totals
+ * Create a new report with rolling totals (Scoped to User)
  */
 const createReport = async (reportData) => {
-  const { projectName, reportDate } = reportData;
+  // 1. Extract 'user' from reportData (passed from controller)
+  const { projectName, reportDate, user } = reportData;
 
-  if (!projectName || !reportDate) {
-    throw new Error("projectName and reportDate are required");
+  if (!projectName || !reportDate || !user) {
+    throw new Error("projectName, reportDate, and user are required");
   }
 
-  // Normalize the incoming reportDate to UTC Midnight
-  // This prevents the "Date Shift" when saving from different timezones
+  // Your excellent UTC normalization (Keep this!)
   const d = new Date(reportDate);
   const normalizedDate = new Date(Date.UTC(
-    d.getUTCFullYear(),
-    d.getUTCMonth(),
-    d.getUTCDate(),
-    0, 0, 0, 0
+    d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0
   ));
   
-  // Update the reportData with the clean UTC date
   reportData.reportDate = normalizedDate;
 
-  // Fetch the previous report for the same project
-  const previousReport = await DailyReport.findOne({ projectName })
-    .sort({ reportDate: -1 });
+  // 2. THE CRITICAL FIX: Fetch the previous report ONLY for this user
+  // Without 'user', User B inherits User A's data totals!
+  const previousReport = await DailyReport.findOne({ 
+    projectName, 
+    user 
+  }).sort({ reportDate: -1 });
 
-  // Helper function to calculate rolling totals for one array
+  // Helper remains the same (it just processes the data found)
   const calculateRollingTotals = (newItems, previousItems = []) => {
     return newItems.map((item) => {
       const prevItem = previousItems.find(
@@ -187,35 +198,20 @@ const createReport = async (reportData) => {
     });
   };
 
-  // Process all arrays
-  const managementTeam = calculateRollingTotals(
-    reportData.managementTeam || [],
-    previousReport?.managementTeam || []
-  );
+  // Process all arrays (Management, Working Team, Materials, Machinery)
+  const managementTeam = calculateRollingTotals(reportData.managementTeam || [], previousReport?.managementTeam || []);
+  const workingTeam = calculateRollingTotals(reportData.workingTeam || [], previousReport?.workingTeam || []);
+  const materials = calculateRollingTotals(reportData.materials || [], previousReport?.materials || []);
+  const machinery = calculateRollingTotals(reportData.machinery || [], previousReport?.machinery || []);
 
-  const workingTeam = calculateRollingTotals(
-    reportData.workingTeam || [],
-    previousReport?.workingTeam || []
-  );
-
-  const materials = calculateRollingTotals(
-    reportData.materials || [],
-    previousReport?.materials || []
-  );
-
-  const machinery = calculateRollingTotals(
-    reportData.machinery || [],
-    previousReport?.machinery || []
-  );
-
-  // Create the new report with calculated totals
+  // 3. Create the new report tied to the correct user
   const report = new DailyReport({
     ...reportData,
     managementTeam,
     workingTeam,
     materials,
     machinery,
-    status: "draft", // keep draft initially
+    status: "draft",
   });
 
   return await report.save();
