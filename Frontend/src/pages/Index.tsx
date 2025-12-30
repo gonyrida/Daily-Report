@@ -1,3 +1,4 @@
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import ReportHeader from "@/components/ReportHeader";
 import ProjectInfo from "@/components/ProjectInfo";
 import ActivitySection from "@/components/ActivitySection";
@@ -6,6 +7,7 @@ import ReportActions from "@/components/ReportActions";
 import PDFPreviewModal from "@/components/PDFPreviewModal";
 import { ResourceRow } from "@/components/ResourceTable";
 import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
+import { useToast } from "@/hooks/use-toast";
 
 // API Configuration
 const API_BASE_URL = "http://localhost:5000/api/daily-reports";
