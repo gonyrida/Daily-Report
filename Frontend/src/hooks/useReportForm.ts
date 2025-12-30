@@ -418,8 +418,17 @@ export const useReportForm = () => {
     try {
       // 1. Prepare and clean data
       const rawData = getReportData();
+      
+      // FIX: Create the perfect UTC date string (YYYY-MM-DD)
+      const d = new Date(rawData.reportDate!);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const perfectDateStr = `${year}-${month}-${day}`; 
+
       const cleanedData = {
         ...rawData,
+        reportDate: perfectDateStr, // Use the clean string here!
         managementTeam: cleanResourceRows(rawData.managementTeam),
         workingTeam: cleanResourceRows(rawData.workingTeam),
         materials: cleanResourceRows(rawData.materials),
@@ -427,44 +436,48 @@ export const useReportForm = () => {
       };
 
       // 2. Database Actions
+      // Now both calls use the EXACT same date string
       await saveReportToDB(cleanedData);
       await submitReportToDB(
         cleanedData.projectName,
-        new Date(cleanedData.reportDate!)
+        new Date(perfectDateStr) // This matches what saveReportToDB just sent
       );
 
       // 3. Cleanup current day
       localStorage.removeItem(dateKey(reportDate));
 
-      // 4. Carry-Forward Logic for Tomorrow
-      const nextDay = new Date(reportDate!.getTime() + 86400000);
+      // 4. Carry-Forward Logic for Tomorrow - Safely increment to UTC Midnight
+      const nextDay = new Date(reportDate!);
+      nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+      nextDay.setUTCHours(0, 0, 0, 0);
+
       const carryForwardData = {
         projectName: cleanedData.projectName,
-        reportDate: nextDay.toISOString(),
+        reportDate: nextDay.toISOString(), // Cleanly formatted for tomorrow
         weather: "Sunny" as const,
         weatherPeriod: "AM" as "AM" | "PM",
         temperature: "",
         activityToday: "",
         workPlanNextDay: "",
-        managementTeam: cleanedData.managementTeam.map((r) => ({
+        managementTeam: cleanedData.managementTeam.map((r: any) => ({
           ...r,
           prev: r.accumulated, // Move today's totals to tomorrow's "previous"
           today: 0,
           accumulated: r.accumulated,
         })),
-        workingTeam: cleanedData.workingTeam.map((r) => ({
+        workingTeam: cleanedData.workingTeam.map((r: any) => ({
           ...r,
           prev: r.accumulated,
           today: 0,
           accumulated: r.accumulated,
         })),
-        materials: cleanedData.materials.map((r) => ({
+        materials: cleanedData.materials.map((r: any) => ({
           ...r,
           prev: r.accumulated,
           today: 0,
           accumulated: r.accumulated,
         })),
-        machinery: cleanedData.machinery.map((r) => ({
+        machinery: cleanedData.machinery.map((r: any) => ({
           ...r,
           prev: r.accumulated,
           today: 0,

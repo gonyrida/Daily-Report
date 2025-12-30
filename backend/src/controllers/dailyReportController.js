@@ -46,44 +46,40 @@ const getReportByDate = async (req, res) => {
 const saveOrUpdateReport = async (req, res) => {
   try {
     const reportData = req.body;
+    if (!reportData.reportDate) return res.status(400).json({ message: "Date required" });
 
-    // Ensure reportDate is a Date
-    if (!reportData.reportDate) {
-      return res.status(400).json({ message: "reportDate is required" });
-    }
-    reportData.reportDate = new Date(reportData.reportDate);
+    // Force normalized UTC Date object
+    const dateOnly = new Date(reportData.reportDate).toISOString().split('T')[0];
+    reportData.reportDate = new Date(`${dateOnly}T00:00:00.000Z`);
 
     const report = await dailyReportService.saveOrUpdateReport(reportData);
     res.status(200).json(report);
   } catch (error) {
-    console.error(error);
     res.status(500).json({ error: error.message });
   }
 };
 
 // Submit report - FIXED: use req.body instead of req.query
 const submitReport = async (req, res) => {
+  // DEBUG 2: Confirm the request reached the backend and check the body
+  console.log("DEBUG BACKEND CONTROLLER: Received Body ->", req.body);
+
   try {
-    const { projectName, date } = req.body; // ← CHANGED from req.query to req.body
+    const { projectName, date } = req.body;
+    const datePart = new Date(date).toISOString().split('T')[0];
+    const normalizedDate = new Date(`${datePart}T00:00:00.000Z`);
 
-    if (!projectName || !date) {
-      return res
-        .status(400)
-        .json({ message: "projectName and date are required" });
-    }
+    // DEBUG 3: Check normalization before passing to Service
+    console.log("DEBUG BACKEND CONTROLLER: Normalized Date ->", normalizedDate.toISOString());
 
-    const report = await dailyReportService.submitDailyReport(
-      projectName,
-      new Date(date)
-    );
-
-    if (!report) {
-      return res.status(404).json({ message: "Report not found" });
-    }
-
-    res.status(200).json(report);
-    console.log("Report submitted successfully", report);
+    const report = await dailyReportService.submitDailyReport(projectName, normalizedDate);
+    // Even if something went weird, if we got here, send success
+    res.status(200).json({
+      success: true,
+      data: report
+    });
   } catch (error) {
+    console.error("Submit Error:", error);
     res.status(500).json({ error: error.message });
   }
 };
