@@ -1,8 +1,10 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 const connectDB = require("./config/db");
 const dailyReportRoutes = require("./routes/dailyReportRoutes");
 const authRoutes = require("./routes/authRoutes");
+const imageRoutes = require("./routes/imageRoutes");
 const { authenticateToken } = require("./middleware/authMiddleware");
 const env = require("./config/env"); // Add this line
 
@@ -22,9 +24,21 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve static files from uploads directory
+app.use(
+  "/uploads",
+  express.static(path.join(__dirname, "../uploads"), {
+    setHeaders: (res, filePath) => {
+      // Set CORS headers for images
+      res.setHeader("Access-Control-Allow-Origin", "*");
+    },
+  })
+);
+
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/daily-reports", authenticateToken, dailyReportRoutes);
+app.use("/api/images", imageRoutes);
 
 // Health check route
 app.get("/", (req, res) => {
