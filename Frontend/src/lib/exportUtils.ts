@@ -5,9 +5,10 @@ import { ResourceRow } from "@/components/ResourceTable";
 interface ReportData {
   projectName: string;
   reportDate: Date | undefined;
-  weather: string;
-  weatherPeriod: "AM" | "PM";
-  temperature: string;
+  weatherAM: string;
+  weatherPM: string;
+  tempAM: string;
+  tempPM: string;
   activityToday: string;
   workPlanNextDay: string;
   managementTeam: ResourceRow[];
@@ -121,10 +122,20 @@ export const exportToPDF = async (
   y += 6;
   doc.text(`Report Date: ${formatDate(data.reportDate)}`, margin, y);
   y += 6;
+  // Weather Summary in the format: Weather: AM Cloudy | PM Cloudy
+  const weatherAMDisplay = data.weatherAM || "";
+  const weatherPMDisplay = data.weatherPM || "";
   doc.text(
-    `Weather (${data.weatherPeriod}): ${data.weather} ${
-      data.temperature ? `(${data.temperature}°C)` : ""
-    }`,
+    `Weather      : AM ${weatherAMDisplay}  |  PM ${weatherPMDisplay}`,
+    margin,
+    y
+  );
+  y += 6;
+  // Temperature Summary in the format: Temperature: AM 28°C | PM 32°C
+  const tempAMDisplay = data.tempAM ? `${data.tempAM}°C` : "";
+  const tempPMDisplay = data.tempPM ? `${data.tempPM}°C` : "";
+  doc.text(
+    `Temperature  : AM ${tempAMDisplay}    |  PM ${tempPMDisplay}`,
     margin,
     y
   );
@@ -517,12 +528,14 @@ export const exportToExcel = async (data: ReportData) => {
 
   // Header info
   worksheet.getCell("B7").value = `Project Name : ${data.projectName || ""}`;
-  worksheet.getCell("B8").value = `Weather          : ${
-    data.weatherPeriod || ""
-  } ${data.weather || ""}`.trim();
-  worksheet.getCell("B9").value = `Temperature  : ${
-    data.temperature ? `${data.temperature} °C` : ""
-  }`;
+  // Weather Summary in the format: Weather: AM Cloudy | PM Cloudy
+  const weatherAMDisplay = data.weatherAM || "";
+  const weatherPMDisplay = data.weatherPM || "";
+  worksheet.getCell("B8").value = `Weather          : AM ${weatherAMDisplay}  |  PM ${weatherPMDisplay}`;
+  // Temperature Summary in the format: Temperature: AM 28°C | PM 32°C
+  const tempAMDisplay = data.tempAM ? `${data.tempAM}°C` : "";
+  const tempPMDisplay = data.tempPM ? `${data.tempPM}°C` : "";
+  worksheet.getCell("B9").value = `Temperature  : AM ${tempAMDisplay}    |  PM ${tempPMDisplay}`;
   const dateCell = worksheet.getCell("I9");
   dateCell.value = dateValue || null;
   if (!dateCell.numFmt) {

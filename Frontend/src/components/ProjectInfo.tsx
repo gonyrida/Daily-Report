@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { CalendarIcon, Sun, Cloud, CloudRain } from "lucide-react";
+import { CalendarIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -9,6 +8,13 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -17,57 +23,60 @@ interface ProjectInfoProps {
   setProjectName: (name: string) => void;
   reportDate: Date | undefined;
   setReportDate: (date: Date | undefined) => void;
-  weather: string;
-  setWeather: (weather: string) => void;
-  weatherPeriod: "AM" | "PM";
-  setWeatherPeriod: (period: "AM" | "PM") => void;
-  temperature: string;
-  setTemperature: (temp: string) => void;
+  weatherAM: string;
+  setWeatherAM: (weather: string) => void;
+  weatherPM: string;
+  setWeatherPM: (weather: string) => void;
+  tempAM: string;
+  setTempAM: (temp: string) => void;
+  tempPM: string;
+  setTempPM: (temp: string) => void;
+  currentPeriod: "AM" | "PM";
+  setCurrentPeriod: (period: "AM" | "PM") => void;
 }
-
-const WeatherOption = ({
-  value,
-  selected,
-  onClick,
-  icon: Icon,
-}: {
-  value: string;
-  selected: boolean;
-  onClick: () => void;
-  icon: React.ElementType;
-}) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={cn(
-      "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
-      selected
-        ? "bg-primary text-primary-foreground shadow-sm"
-        : "bg-muted text-muted-foreground hover:bg-muted/80"
-    )}
-  >
-    <Icon className="w-4 h-4" />
-    {value}
-  </button>
-);
 
 const ProjectInfo = ({
   projectName,
   setProjectName,
   reportDate,
   setReportDate,
-  weather,
-  setWeather,
-  weatherPeriod,
-  setWeatherPeriod,
-  temperature,
-  setTemperature,
+  weatherAM,
+  setWeatherAM,
+  weatherPM,
+  setWeatherPM,
+  tempAM,
+  setTempAM,
+  tempPM,
+  setTempPM,
+  currentPeriod,
+  setCurrentPeriod,
 }: ProjectInfoProps) => {
-  const weatherOptions = [
-    { value: "Sunny", icon: Sun },
-    { value: "Cloudy", icon: Cloud },
-    { value: "Rainy", icon: CloudRain },
-  ];
+  const weatherOptions = ["Sunny", "Cloudy", "Rainy"];
+  
+  // Get current period's values
+  const currentWeather = currentPeriod === "AM" ? weatherAM : weatherPM;
+  const currentTemp = currentPeriod === "AM" ? tempAM : tempPM;
+  
+  // Handlers for current period
+  const handleWeatherChange = (value: string) => {
+    if (currentPeriod === "AM") {
+      setWeatherAM(value);
+    } else {
+      setWeatherPM(value);
+    }
+  };
+  
+  const handleTempChange = (value: string) => {
+    if (currentPeriod === "AM") {
+      setTempAM(value);
+    } else {
+      setTempPM(value);
+    }
+  };
+
+  // Generate Weather Summary
+  const weatherSummary = `Weather      : AM ${weatherAM || ""}  |  PM ${weatherPM || ""}`;
+  const tempSummary = `Temperature  : AM ${tempAM ? `${tempAM}°C` : ""}    |  PM ${tempPM ? `${tempPM}°C` : ""}`;
 
   return (
     <div className="section-card p-6 animate-fade-in">
@@ -124,54 +133,64 @@ const ProjectInfo = ({
             <Label className="text-sm font-medium text-foreground">
               Weather
             </Label>
-            <div className="flex flex-col gap-3 mt-1.5">
-              {/* AM/PM Toggle */}
-              <div className="flex gap-1">
-                <button
-                  type="button"
-                  onClick={() => setWeatherPeriod("AM")}
-                  className={cn(
-                    "px-4 py-1.5 rounded-lg text-sm font-medium transition-all",
-                    weatherPeriod === "AM"
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80"
-                  )}
-                >
-                  AM
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setWeatherPeriod("PM")}
-                  className={cn(
-                    "px-4 py-1.5 rounded-lg text-sm font-medium transition-all",
-                    weatherPeriod === "PM"
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80"
-                  )}
-                >
-                  PM
-                </button>
+            <div className="space-y-3 mt-1.5">
+              {/* Input Row: Period, Weather Condition, Temperature */}
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <Label htmlFor="period" className="text-xs text-muted-foreground mb-1 block">
+                    Period
+                  </Label>
+                  <Select value={currentPeriod} onValueChange={(value: "AM" | "PM") => setCurrentPeriod(value)}>
+                    <SelectTrigger id="period">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="AM">AM</SelectItem>
+                      <SelectItem value="PM">PM</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="flex-1">
+                  <Label htmlFor="weather-condition" className="text-xs text-muted-foreground mb-1 block">
+                    Weather Condition
+                  </Label>
+                  <Select value={currentWeather || ""} onValueChange={handleWeatherChange}>
+                    <SelectTrigger id="weather-condition">
+                      <SelectValue placeholder="Select condition" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {weatherOptions.map((opt) => (
+                        <SelectItem key={opt} value={opt}>
+                          {opt}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="w-24">
+                  <Label htmlFor="temperature" className="text-xs text-muted-foreground mb-1 block">
+                    Temperature
+                  </Label>
+                  <Input
+                    id="temperature"
+                    value={currentTemp}
+                    onChange={(e) => handleTempChange(e.target.value)}
+                    placeholder="°C"
+                  />
+                </div>
               </div>
 
-              {/* Weather Options */}
-              <div className="flex items-center gap-2">
-                <div className="flex gap-1">
-                  {weatherOptions.map((opt) => (
-                    <WeatherOption
-                      key={opt.value}
-                      value={opt.value}
-                      selected={weather === opt.value}
-                      onClick={() => setWeather(opt.value)}
-                      icon={opt.icon}
-                    />
-                  ))}
+              {/* Weather Summary */}
+              <div className="mt-4 pt-3 border-t">
+                <Label className="text-sm font-medium text-foreground mb-2 block">
+                  Weather Summary
+                </Label>
+                <div className="font-mono text-sm text-muted-foreground space-y-1 bg-muted/50 p-3 rounded-md">
+                  <div>{weatherSummary}</div>
+                  <div>{tempSummary}</div>
                 </div>
-                <Input
-                  value={temperature}
-                  onChange={(e) => setTemperature(e.target.value)}
-                  placeholder="°C"
-                  className="w-20"
-                />
               </div>
             </div>
           </div>

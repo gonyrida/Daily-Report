@@ -95,9 +95,10 @@ function loadDraftLocally(date: Date | undefined): ReportData | null {
 interface ReportData {
   projectName: string;
   reportDate: string | null;
-  weather: string;
-  weatherPeriod: "AM" | "PM";
-  temperature: string;
+  weatherAM: string;
+  weatherPM: string;
+  tempAM: string;
+  tempPM: string;
   activityToday: string;
   workPlanNextDay: string;
   managementTeam: ResourceRow[];
@@ -112,9 +113,11 @@ const Index = () => {
   // Project Info
   const [projectName, setProjectName] = useState("");
   const [reportDate, setReportDate] = useState<Date | undefined>(new Date());
-  const [weather, setWeather] = useState("Sunny");
-  const [weatherPeriod, setWeatherPeriod] = useState<"AM" | "PM">("AM");
-  const [temperature, setTemperature] = useState("");
+  const [weatherAM, setWeatherAM] = useState("");
+  const [weatherPM, setWeatherPM] = useState("");
+  const [tempAM, setTempAM] = useState("");
+  const [tempPM, setTempPM] = useState("");
+  const [currentPeriod, setCurrentPeriod] = useState<"AM" | "PM">("AM");
 
   // Activities
   const [activityToday, setActivityToday] = useState("");
@@ -143,9 +146,10 @@ const Index = () => {
     (): ReportData => ({
       projectName,
       reportDate: reportDate?.toISOString() || null,
-      weather,
-      weatherPeriod,
-      temperature,
+      weatherAM,
+      weatherPM,
+      tempAM,
+      tempPM,
       activityToday,
       workPlanNextDay,
       managementTeam,
@@ -156,9 +160,10 @@ const Index = () => {
     [
       projectName,
       reportDate,
-      weather,
-      weatherPeriod,
-      temperature,
+      weatherAM,
+      weatherPM,
+      tempAM,
+      tempPM,
       activityToday,
       workPlanNextDay,
       managementTeam,
@@ -183,9 +188,31 @@ const Index = () => {
           setReportDate(
             dbReport.reportDate ? new Date(dbReport.reportDate) : new Date()
           );
-          setWeather(dbReport.weather || "Sunny");
-          setWeatherPeriod(dbReport.weatherPeriod || "AM");
-          setTemperature(dbReport.temperature || "");
+          // Handle backward compatibility: convert old format to new
+          if (dbReport.weatherAM !== undefined) {
+            setWeatherAM(dbReport.weatherAM || "");
+            setWeatherPM(dbReport.weatherPM || "");
+            setTempAM(dbReport.tempAM || "");
+            setTempPM(dbReport.tempPM || "");
+            setCurrentPeriod(dbReport.currentPeriod || "AM");
+          } else {
+            // Old format: migrate to new format
+            const oldWeather = dbReport.weather || "Sunny";
+            const oldPeriod = dbReport.weatherPeriod || "AM";
+            const oldTemp = dbReport.temperature || "";
+            if (oldPeriod === "AM") {
+              setWeatherAM(oldWeather);
+              setWeatherPM("");
+              setTempAM(oldTemp);
+              setTempPM("");
+            } else {
+              setWeatherAM("");
+              setWeatherPM(oldWeather);
+              setTempAM("");
+              setTempPM(oldTemp);
+            }
+            setCurrentPeriod("AM");
+          }
           setActivityToday(dbReport.activityToday || "");
           setWorkPlanNextDay(dbReport.workPlanNextDay || "");
           setManagementTeam(dbReport.managementTeam || []);
@@ -202,9 +229,30 @@ const Index = () => {
                 ? new Date(localDraft.reportDate)
                 : new Date()
             );
-            setWeather(localDraft.weather || "Sunny");
-            setWeatherPeriod(localDraft.weatherPeriod || "AM");
-            setTemperature(localDraft.temperature || "");
+            // Handle backward compatibility
+            if (localDraft.weatherAM !== undefined) {
+              setWeatherAM(localDraft.weatherAM || "");
+              setWeatherPM(localDraft.weatherPM || "");
+              setTempAM(localDraft.tempAM || "");
+              setTempPM(localDraft.tempPM || "");
+              setCurrentPeriod(localDraft.currentPeriod || "AM");
+            } else {
+              const oldWeather = localDraft.weather || "Sunny";
+              const oldPeriod = localDraft.weatherPeriod || "AM";
+              const oldTemp = localDraft.temperature || "";
+              if (oldPeriod === "AM") {
+                setWeatherAM(oldWeather);
+                setWeatherPM("");
+                setTempAM(oldTemp);
+                setTempPM("");
+              } else {
+                setWeatherAM("");
+                setWeatherPM(oldWeather);
+                setTempAM("");
+                setTempPM(oldTemp);
+              }
+              setCurrentPeriod("AM");
+            }
             setActivityToday(localDraft.activityToday || "");
             setWorkPlanNextDay(localDraft.workPlanNextDay || "");
             setManagementTeam(localDraft.managementTeam || []);
@@ -222,9 +270,30 @@ const Index = () => {
           setReportDate(
             localDraft.reportDate ? new Date(localDraft.reportDate) : new Date()
           );
-          setWeather(localDraft.weather || "Sunny");
-          setWeatherPeriod(localDraft.weatherPeriod || "AM");
-          setTemperature(localDraft.temperature || "");
+          // Handle backward compatibility
+          if (localDraft.weatherAM !== undefined) {
+            setWeatherAM(localDraft.weatherAM || "");
+            setWeatherPM(localDraft.weatherPM || "");
+            setTempAM(localDraft.tempAM || "");
+            setTempPM(localDraft.tempPM || "");
+            setCurrentPeriod(localDraft.currentPeriod || "AM");
+          } else {
+            const oldWeather = localDraft.weather || "Sunny";
+            const oldPeriod = localDraft.weatherPeriod || "AM";
+            const oldTemp = localDraft.temperature || "";
+            if (oldPeriod === "AM") {
+              setWeatherAM(oldWeather);
+              setWeatherPM("");
+              setTempAM(oldTemp);
+              setTempPM("");
+            } else {
+              setWeatherAM("");
+              setWeatherPM(oldWeather);
+              setTempAM("");
+              setTempPM(oldTemp);
+            }
+            setCurrentPeriod("AM");
+          }
           setActivityToday(localDraft.activityToday || "");
           setWorkPlanNextDay(localDraft.workPlanNextDay || "");
           setManagementTeam(localDraft.managementTeam || []);
@@ -256,9 +325,30 @@ const Index = () => {
           if (dbReport) {
             // Found report in database
             setProjectName(dbReport.projectName || "");
-            setWeather(dbReport.weather || "Sunny");
-            setWeatherPeriod(dbReport.weatherPeriod || "AM");
-            setTemperature(dbReport.temperature || "");
+            // Handle backward compatibility
+            if (dbReport.weatherAM !== undefined) {
+              setWeatherAM(dbReport.weatherAM || "");
+              setWeatherPM(dbReport.weatherPM || "");
+              setTempAM(dbReport.tempAM || "");
+              setTempPM(dbReport.tempPM || "");
+              setCurrentPeriod(dbReport.currentPeriod || "AM");
+            } else {
+              const oldWeather = dbReport.weather || "Sunny";
+              const oldPeriod = dbReport.weatherPeriod || "AM";
+              const oldTemp = dbReport.temperature || "";
+              if (oldPeriod === "AM") {
+                setWeatherAM(oldWeather);
+                setWeatherPM("");
+                setTempAM(oldTemp);
+                setTempPM("");
+              } else {
+                setWeatherAM("");
+                setWeatherPM(oldWeather);
+                setTempAM("");
+                setTempPM(oldTemp);
+              }
+              setCurrentPeriod("AM");
+            }
             setActivityToday(dbReport.activityToday || "");
             setWorkPlanNextDay(dbReport.workPlanNextDay || "");
             setManagementTeam(dbReport.managementTeam || []);
@@ -272,9 +362,30 @@ const Index = () => {
             if (localDraft) {
               // Found local draft
               setProjectName(localDraft.projectName || "");
-              setWeather(localDraft.weather || "Sunny");
-              setWeatherPeriod(localDraft.weatherPeriod || "AM");
-              setTemperature(localDraft.temperature || "");
+              // Handle backward compatibility
+              if (localDraft.weatherAM !== undefined) {
+                setWeatherAM(localDraft.weatherAM || "");
+                setWeatherPM(localDraft.weatherPM || "");
+                setTempAM(localDraft.tempAM || "");
+                setTempPM(localDraft.tempPM || "");
+                setCurrentPeriod(localDraft.currentPeriod || "AM");
+              } else {
+                const oldWeather = localDraft.weather || "Sunny";
+                const oldPeriod = localDraft.weatherPeriod || "AM";
+                const oldTemp = localDraft.temperature || "";
+                if (oldPeriod === "AM") {
+                  setWeatherAM(oldWeather);
+                  setWeatherPM("");
+                  setTempAM(oldTemp);
+                  setTempPM("");
+                } else {
+                  setWeatherAM("");
+                  setWeatherPM(oldWeather);
+                  setTempAM("");
+                  setTempPM(oldTemp);
+                }
+                setCurrentPeriod("AM");
+              }
               setActivityToday(localDraft.activityToday || "");
               setWorkPlanNextDay(localDraft.workPlanNextDay || "");
               setManagementTeam(localDraft.managementTeam || []);
@@ -305,9 +416,11 @@ const Index = () => {
 
                 // Reset other fields for new day
                 setProjectName("");
-                setWeather("Sunny");
-                setWeatherPeriod("AM");
-                setTemperature("");
+                setWeatherAM("");
+                setWeatherPM("");
+                setTempAM("");
+                setTempPM("");
+                setCurrentPeriod("AM");
                 setActivityToday("");
                 setWorkPlanNextDay("");
               }
@@ -394,9 +507,10 @@ const Index = () => {
       await exportToPDF({
         projectName,
         reportDate,
-        weather,
-        weatherPeriod,
-        temperature,
+        weatherAM,
+        weatherPM,
+        tempAM,
+        tempPM,
         activityToday,
         workPlanNextDay,
         managementTeam,
@@ -427,9 +541,10 @@ const Index = () => {
         {
           projectName,
           reportDate,
-          weather,
-          weatherPeriod,
-          temperature,
+          weatherAM,
+          weatherPM,
+          tempAM,
+          tempPM,
           activityToday,
           workPlanNextDay,
           managementTeam,
@@ -457,9 +572,10 @@ const Index = () => {
       await exportToPDF({
         projectName,
         reportDate,
-        weather,
-        weatherPeriod,
-        temperature,
+        weatherAM,
+        weatherPM,
+        tempAM,
+        tempPM,
         activityToday,
         workPlanNextDay,
         managementTeam,
@@ -488,9 +604,10 @@ const Index = () => {
       exportToExcel({
         projectName,
         reportDate,
-        weather,
-        weatherPeriod,
-        temperature,
+        weatherAM,
+        weatherPM,
+        tempAM,
+        tempPM,
         activityToday,
         workPlanNextDay,
         managementTeam,
@@ -521,9 +638,10 @@ const Index = () => {
       await exportToPDF({
         projectName,
         reportDate,
-        weather,
-        weatherPeriod,
-        temperature,
+        weatherAM,
+        weatherPM,
+        tempAM,
+        tempPM,
         activityToday,
         workPlanNextDay,
         managementTeam,
@@ -536,9 +654,10 @@ const Index = () => {
       exportToExcel({
         projectName,
         reportDate,
-        weather,
-        weatherPeriod,
-        temperature,
+        weatherAM,
+        weatherPM,
+        tempAM,
+        tempPM,
         activityToday,
         workPlanNextDay,
         managementTeam,
@@ -565,9 +684,11 @@ const Index = () => {
   const handleClear = () => {
     setProjectName("");
     setReportDate(new Date());
-    setWeather("Sunny");
-    setWeatherPeriod("AM");
-    setTemperature("");
+    setWeatherAM("");
+    setWeatherPM("");
+    setTempAM("");
+    setTempPM("");
+    setCurrentPeriod("AM");
     setActivityToday("");
     setWorkPlanNextDay("");
     setManagementTeam([]);
@@ -633,9 +754,10 @@ const Index = () => {
       const carryForwardData = {
         projectName: cleanedData.projectName,
         reportDate: nextDay.toISOString(),
-        weather: "Sunny",
-        weatherPeriod: "AM" as "AM" | "PM",
-        temperature: "",
+        weatherAM: "",
+        weatherPM: "",
+        tempAM: "",
+        tempPM: "",
         activityToday: "",
         workPlanNextDay: "",
         managementTeam: cleanedData.managementTeam.map((r) => ({
@@ -693,12 +815,16 @@ const Index = () => {
           setProjectName={setProjectName}
           reportDate={reportDate}
           setReportDate={setReportDate}
-          weather={weather}
-          setWeather={setWeather}
-          weatherPeriod={weatherPeriod}
-          setWeatherPeriod={setWeatherPeriod}
-          temperature={temperature}
-          setTemperature={setTemperature}
+          weatherAM={weatherAM}
+          setWeatherAM={setWeatherAM}
+          weatherPM={weatherPM}
+          setWeatherPM={setWeatherPM}
+          tempAM={tempAM}
+          setTempAM={setTempAM}
+          tempPM={tempPM}
+          setTempPM={setTempPM}
+          currentPeriod={currentPeriod}
+          setCurrentPeriod={setCurrentPeriod}
         />
 
         <ActivitySection
