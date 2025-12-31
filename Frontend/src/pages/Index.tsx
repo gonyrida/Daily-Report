@@ -6,6 +6,9 @@ import ResourcesSection from "@/components/ResourcesSection";
 import ReportActions from "@/components/ReportActions";
 import PDFPreviewModal from "@/components/PDFPreviewModal";
 import ReferenceSection from "@/components/ReferenceSection";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Eye, FileDown, FileSpreadsheet, FileText, FileType } from "lucide-react";
 import { ResourceRow } from "@/components/ResourceTable";
 import {
   exportToPDF,
@@ -1043,11 +1046,51 @@ const Index = () => {
           isSubmitting={isSubmitting}
         />
 
-        {/* Reference section (renders below Report content; maps to Excel Sheet 2) */}
+        {/* Reference section (renders below Report content) */}
         <div className="mt-8 pt-6 border-t border-muted-foreground/20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6">
-            <h2 className="text-sm font-semibold text-foreground/70 mb-4">Reference (Sheet 2)</h2>
+            <h2 className="text-sm font-semibold text-foreground/70 mb-4">Reference</h2>
             <ReferenceSection sections={referenceSections} setSections={setReferenceSections} />
+          </div>
+        </div>
+
+        <div className="mt-6 pt-6 border-t border-muted-foreground/20">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">
+              Export combined: <span className="font-medium text-foreground">Report</span> = Sheet 1, <span className="font-medium text-foreground">Reference</span> = Sheet 2
+            </div>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" className="min-w-[140px]">
+                <Eye className="w-4 h-4 mr-2" />
+                Preview Combined
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button className="min-w-[160px] bg-primary hover:bg-primary/90">
+                    <FileDown className="w-4 h-4 mr-2" />
+                    Export Combined
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem>
+                    <FileText className="w-4 h-4 mr-2" />
+                    Export Combined PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <FileSpreadsheet className="w-4 h-4 mr-2" />
+                    Export Combined Excel
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <FileType className="w-4 h-4 mr-2" />
+                    Export Combined Docs (Word)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <FileDown className="w-4 h-4 mr-2" />
+                    Download Combined (ZIP)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
 

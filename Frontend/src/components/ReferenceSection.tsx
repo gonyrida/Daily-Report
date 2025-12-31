@@ -3,7 +3,8 @@ import SectionList from "./reference/SectionList";
 import { createReferenceSection } from "@/utils/referenceHelpers";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Image, PlusCircle } from "lucide-react";
+import { Image, PlusCircle, Image as ImageIcon, FileDown, FileText, FileSpreadsheet, FileType } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface Props {
   sections: any[];
@@ -26,12 +27,45 @@ export default function ReferenceSection({ sections, setSections }: Props) {
           </div>
           <div>
             <h2 className="text-lg font-semibold text-foreground">Reference</h2>
-            <p className="text-sm text-muted-foreground">Reference images and captions (will map to Sheet 2)</p>
+            <p className="text-sm text-muted-foreground">Reference images and captions</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <Badge variant="secondary">Sheet 2</Badge>
+          <div className="hidden md:flex items-center gap-2">
+            <Button variant="outline" className="min-w-[120px]">
+              <Image className="w-4 h-4 mr-2" />
+              Preview
+            </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button className="min-w-[140px] bg-primary hover:bg-primary/90">
+                  <FileDown className="w-4 h-4 mr-2" />
+                  Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem>
+                  <FileText className="w-4 h-4 mr-2" />
+                  Export PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <FileSpreadsheet className="w-4 h-4 mr-2" />
+                  Export Excel
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <FileType className="w-4 h-4 mr-2" />
+                  Export Docs (Word)
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <FileDown className="w-4 h-4 mr-2" />
+                  Download All (ZIP)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
           <Button onClick={addSection} className="bg-primary hover:bg-primary/90 inline-flex items-center gap-2"><PlusCircle className="w-4 h-4" />Add Section</Button>
         </div>
       </div>
