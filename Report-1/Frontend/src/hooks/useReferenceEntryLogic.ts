@@ -32,6 +32,7 @@ export function useReferenceEntryLogic(entry: any, onUpdate: (u: any) => void, o
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>, key: string) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
+    // If multiple files selected at entry, forward to section to handle pairing/filling
     if (files.length > 1 && typeof onBulkUpload === "function") {
       onBulkUpload(files, entry.id, key);
       if (fileInputRefs[key]?.current) fileInputRefs[key].current.value = "";

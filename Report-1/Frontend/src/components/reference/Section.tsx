@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 export default function Section({ section, onUpdate, onDelete }: any) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Add a new entry
+  // Add a new entry (single-image entry)
   const addEntry = () => {
     onUpdate({
       ...section,
@@ -16,8 +16,8 @@ export default function Section({ section, onUpdate, onDelete }: any) {
         ...section.entries,
         {
           id: crypto.randomUUID(),
-          images: { image1: null, image2: null },
-          footers: ["", ""],
+          image: null,
+          caption: "",
         },
       ],
     });
@@ -42,11 +42,11 @@ export default function Section({ section, onUpdate, onDelete }: any) {
 
   const cancelDelete = () => setShowDeleteConfirm(false);
 
-  // Bulk upload support: create an entry per uploaded image
+  // Bulk upload support: create or fill entries (each entry holds up to 2 images)
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { toast } = useToast();
 
-  const handleBulkUploadFiles = (files: FileList | null, targetEntryId?: string, targetKey?: string) => {
+  const handleBulkUploadFiles = (files: FileList | null, targetEntryId?: string, targetSlotId?: string) => {
     if (!files) return;
     const imageFiles = Array.from(files).filter((f) => f.type.startsWith("image/"));
     if (imageFiles.length === 0) {
@@ -66,33 +66,46 @@ export default function Section({ section, onUpdate, onDelete }: any) {
     // Convert to mutable array
     let remaining = [...allowed];
 
-    // Make a shallow copy of entries and fill target slot first if provided
-    const entries = section.entries.map((e: any) => ({ ...e, images: { ...e.images } }));
+    // Ensure all entries have slots (migrate from images/footers if necessary)
+    const entries = section.entries.map((e: any) => {
+      if (e.slots && Array.isArray(e.slots)) return { ...e, slots: e.slots.map((s: any) => ({ ...s })) };
+      // migrate old format
+      const s1 = { id: crypto.randomUUID(), image: e.images?.image1 ?? null, caption: e.footers?.[0] ?? "" };
+      const s2 = { id: crypto.randomUUID(), image: e.images?.image2 ?? null, caption: e.footers?.[1] ?? "" };
+      return { ...e, slots: [s1, s2] };
+    });
+
     let filledCount = 0;
 
-    if (targetEntryId && targetKey) {
-      const target = entries.find((en) => en.id === targetEntryId);
-      if (target && target.images[targetKey] == null && remaining.length > 0) {
-        target.images[targetKey] = remaining.shift() as File;
-        filledCount++;
+    // Fill the targeted slot first if provided
+    if (targetEntryId && targetSlotId) {
+      const targetEntry = entries.find((en) => en.id === targetEntryId);
+      if (targetEntry) {
+        const targetSlot = targetEntry.slots.find((s: any) => s.id === targetSlotId);
+        if (targetSlot && targetSlot.image == null && remaining.length > 0) {
+          targetSlot.image = remaining.shift() as File;
+          filledCount++;
+        }
       }
     }
 
-    // Then fill any other entries' empty second slot
+    // Then fill other empty slots in order
     for (let i = 0; i < entries.length && remaining.length > 0; i++) {
       const e = entries[i];
-      if (e.images.image2 == null) {
-        e.images.image2 = remaining.shift() || null;
-        filledCount++;
+      for (let j = 0; j < e.slots.length && remaining.length > 0; j++) {
+        if (e.slots[j].image == null) {
+          e.slots[j].image = remaining.shift() as File;
+          filledCount++;
+        }
       }
     }
 
-    // Then: group remaining files into pairs to create new entries
+    // Group remaining files into pairs to create new entries with up to 2 slots
     const newEntries: any[] = [];
     for (let i = 0; i < remaining.length; i += 2) {
-      const img1 = remaining[i];
-      const img2 = remaining[i + 1] || null;
-      newEntries.push({ id: crypto.randomUUID(), images: { image1: img1, image2: img2 }, footers: ["", ""] });
+      const first = remaining[i];
+      const second = remaining[i + 1] ?? null;
+      newEntries.push({ id: crypto.randomUUID(), slots: [ { id: crypto.randomUUID(), image: first, caption: "" }, { id: crypto.randomUUID(), image: second, caption: "" } ] });
     }
 
     const addedImages = allowed.length;
@@ -103,6 +116,9 @@ export default function Section({ section, onUpdate, onDelete }: any) {
       title: `${addedImages} image(s) processed. ${filledCount ? `${filledCount} filled into existing entries.` : ""}`,
       description: `${newEntries.length} new entr${newEntries.length !== 1 ? "ies" : "y"} created.${rejectedCount ? ` ${rejectedCount} file(s) were too large and skipped.` : ""}`,
     });
+
+    // clear input if present
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const onFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -172,7 +188,7 @@ export default function Section({ section, onUpdate, onDelete }: any) {
               <UploadCloud className="w-4 h-4" />
               Upload Images
             </Button>
-            <p className="text-sm text-muted-foreground">Upload multiple images. Each entry holds up to two images.</p>
+            <p className="text-sm text-muted-foreground">Upload multiple images. Each entry can contain up to two images.</p>
           </div>
 
           <div className="flex items-center gap-3">

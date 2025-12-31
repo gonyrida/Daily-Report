@@ -5,8 +5,10 @@ export function createReferenceSection() {
     entries: [
       {
         id: crypto.randomUUID(),
-        images: { image1: null, image2: null },
-        footers: ["", ""],
+        slots: [
+          { id: crypto.randomUUID(), image: null, caption: "" },
+          { id: crypto.randomUUID(), image: null, caption: "" },
+        ],
       },
     ],
   };
@@ -16,10 +18,6 @@ export const validateReferenceSections = (sections: any[]) => {
   return sections.some(
     (section) =>
       section.title.trim() &&
-      section.entries.some(
-        (entry: any) =>
-          (entry.images.image1 || entry.images.image2) ||
-          entry.footers.some((footer: string) => footer.trim())
-      )
+      section.entries.some((entry: any) => entry.slots && entry.slots.some((slot: any) => slot.image || (slot.caption && slot.caption.trim())))
   );
 };

@@ -1,52 +1,63 @@
-import React from "react";
-import ImageUploadArea from "./ImageUploadArea";
-import { useReferenceEntryLogic } from "../../hooks/useReferenceEntryLogic";
+import React, { useEffect, useRef } from "react";
+import Slot from "./Slot";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Trash2 } from "lucide-react";
+import { Trash2, Plus } from "lucide-react";
 
 export default function Entry({ entry, onUpdate, onDelete, entryNumber, onBulkUpload }: any) {
-  const logic = useReferenceEntryLogic(entry, onUpdate, onBulkUpload);
+  // Normalize slots if missing (migration from older shape)
+  const normalizedSlots = entry.slots && Array.isArray(entry.slots)
+    ? entry.slots
+    : [
+        { id: crypto.randomUUID(), image: entry.images?.image1 ?? null, caption: entry.footers?.[0] ?? "" },
+        { id: crypto.randomUUID(), image: entry.images?.image2 ?? null, caption: entry.footers?.[1] ?? "" },
+      ];
+
+  const migratedRef = useRef(false);
+  useEffect(() => {
+    if (!entry.slots && !migratedRef.current) {
+      migratedRef.current = true;
+      onUpdate({ ...entry, slots: normalizedSlots });
+    }
+  }, [entry, onUpdate, normalizedSlots]);
+
+  // While migration is pending, render nothing to avoid setState in render
+  if (!entry.slots) return null;
+
+  const updateSlot = (updatedSlot: any) => {
+    onUpdate({ ...entry, slots: entry.slots.map((s: any) => (s.id === updatedSlot.id ? updatedSlot : s)) });
+  };
+
+  const deleteSlot = (slotId: string) => {
+    const slots = entry.slots.filter((s: any) => s.id !== slotId);
+    onUpdate({ ...entry, slots });
+  };
+
+  const addSlot = () => {
+    if (entry.slots.length >= 2) return;
+    const slots = [...entry.slots, { id: crypto.randomUUID(), image: null, caption: "" }];
+    onUpdate({ ...entry, slots });
+  };
 
   return (
     <div className="relative mb-12 last:mb-0">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-semibold text-gray-700">Entry {entryNumber}</h3>
-        <Button variant="ghost" onClick={() => onDelete(entry.id)} className="text-red-500 hover:text-red-600">
-          <Trash2 className="w-4 h-4" />
-        </Button> 
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" onClick={() => onDelete(entry.id)} className="text-red-500 hover:text-red-600">
+            <Trash2 className="w-4 h-4" />
+          </Button>
+          {entry.slots.length < 2 ? (
+            <Button variant="outline" onClick={addSlot} className="text-sm">
+              <Plus className="w-4 h-4 mr-2" />Add Slot
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <ImageUploadArea
-          label="Photo 1"
-          imageKey="image1"
-          footerIndex={0}
-          entry={entry}
-          imageUrl={logic.imageUrls.image1}
-          isDragActive={logic.dragActive.image1}
-          fileInputRefs={logic.fileInputRefs}
-          handleDrag={logic.handleDrag}
-          handleDrop={logic.handleDrop}
-          handleImageChange={logic.handleImageChange}
-          removeImage={logic.removeImage}
-          handleFooterChange={logic.handleFooterChange}
-        />
-
-        <ImageUploadArea
-          label="Photo 2"
-          imageKey="image2"
-          footerIndex={1}
-          entry={entry}
-          imageUrl={logic.imageUrls.image2}
-          isDragActive={logic.dragActive.image2}
-          fileInputRefs={logic.fileInputRefs}
-          handleDrag={logic.handleDrag}
-          handleDrop={logic.handleDrop}
-          handleImageChange={logic.handleImageChange}
-          removeImage={logic.removeImage}
-          handleFooterChange={logic.handleFooterChange}
-        />
+        {entry.slots.map((slot: any, idx: number) => (
+          <Slot key={slot.id} slot={slot} entryId={entry.id} slotIndex={idx} onUpdateSlot={updateSlot} onDeleteSlot={deleteSlot} onBulkUpload={onBulkUpload} />
+        ))}
       </div>
     </div>
   );
