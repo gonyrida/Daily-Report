@@ -181,22 +181,11 @@ export default function Section({ section, onUpdate, onDelete }: any) {
           </div>
         )}
 
-        <div className="flex flex-col sm:flex-row gap-3 items-center justify-between mt-6">
-          <div className="flex items-center gap-3">
-            <input ref={fileInputRef} onChange={onFileInputChange} type="file" accept="image/*" multiple className="hidden" />
-            <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="inline-flex items-center gap-2">
-              <UploadCloud className="w-4 h-4" />
-              Upload Images
-            </Button>
-            <p className="text-sm text-muted-foreground">Upload multiple images. Each entry can contain up to two images.</p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Button onClick={addEntry} className="inline-flex items-center gap-2 bg-primary px-4 py-2 text-sm font-semibold text-white"> 
-              <ImagePlus className="w-4 h-4" />
-              Add Entry
-            </Button>
-          </div>
+        <div className="flex items-center justify-end gap-3 mt-6">
+          <Button onClick={addEntry} className="inline-flex items-center gap-2 bg-primary px-4 py-2 text-sm font-semibold text-white"> 
+            <ImagePlus className="w-4 h-4" />
+            Add Entry
+          </Button>
         </div>
       </div>
     </div>
