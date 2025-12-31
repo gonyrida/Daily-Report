@@ -90,16 +90,6 @@ const ReportActions = ({
           {isPreviewing ? "Loading..." : "Preview"}
         </Button>
 
-        <Button
-          variant="outline"
-          onClick={onExportAll}
-          disabled={isExporting}
-          className="min-w-[140px]"
-        >
-          <FileDown className="w-4 h-4 mr-2" />
-          {isExporting ? "Exporting..." : "Download All"}
-        </Button>
-
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -113,11 +103,15 @@ const ReportActions = ({
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={onExportPDF}>
               <FileText className="w-4 h-4 mr-2" />
-              Export as PDF (A4)
+              Export PDF
             </DropdownMenuItem>
             <DropdownMenuItem onClick={onExportExcel}>
               <FileSpreadsheet className="w-4 h-4 mr-2" />
-              Export as Excel
+              Export Excel
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onExportAll}>
+              <FileDown className="w-4 h-4 mr-2" />
+              Download All (ZIP)
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

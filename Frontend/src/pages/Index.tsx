@@ -6,7 +6,7 @@ import ResourcesSection from "@/components/ResourcesSection";
 import ReportActions from "@/components/ReportActions";
 import PDFPreviewModal from "@/components/PDFPreviewModal";
 import { ResourceRow } from "@/components/ResourceTable";
-import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
+import { exportToPDF, exportToExcel, exportToZIP } from "@/lib/exportUtils";
 import { useToast } from "@/hooks/use-toast";
 
 // API Configuration
@@ -778,24 +778,7 @@ const Index = () => {
 
     setIsExporting(true);
     try {
-      // Export PDF first
-      await exportToPDF({
-        projectName,
-        reportDate,
-        weatherAM,
-        weatherPM,
-        tempAM,
-        tempPM,
-        activityToday,
-        workPlanNextDay,
-        managementTeam,
-        workingTeam,
-        materials,
-        machinery,
-      });
-
-      // Then export Excel
-      exportToExcel({
+      await exportToZIP({
         projectName,
         reportDate,
         weatherAM,
@@ -811,14 +794,14 @@ const Index = () => {
       });
 
       toast({
-        title: "All Exports Completed",
+        title: "Export Completed",
         description:
-          "Your report has been exported as PDF and Excel successfully.",
+          "Your report has been exported as a ZIP file containing both PDF and Excel files.",
       });
     } catch (e) {
       toast({
         title: "Export Failed",
-        description: "Could not export all formats. Please try again.",
+        description: "Could not export ZIP file. Please try again.",
         variant: "destructive",
       });
     }

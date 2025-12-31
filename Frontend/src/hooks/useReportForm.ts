@@ -5,7 +5,7 @@ import { ReportData } from "@/types/report";
 import { loadReportFromDB } from "@/integrations/reportsApi";
 import { loadDraftLocally, saveDraftLocally, dateKey } from "@/lib/storageUtils";
 import { useToast } from "@/hooks/use-toast";
-import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
+import { exportToPDF, exportToExcel, exportToZIP } from "@/lib/exportUtils";
 import { saveReportToDB, submitReportToDB } from "@/integrations/reportsApi";
 
 export const useReportForm = () => {
@@ -366,18 +366,17 @@ export const useReportForm = () => {
         reportDate: rawData.reportDate ? new Date(rawData.reportDate) : new Date(),
       };
 
-      // Execute both exports
-      await exportToPDF(dataForExport as any, false);
-      exportToExcel(dataForExport as any);
+      // Export as ZIP containing both PDF and Excel
+      await exportToZIP(dataForExport as any);
 
       toast({
-        title: "All Exports Completed",
-        description: "Your report has been exported as PDF and Excel successfully.",
+        title: "Export Completed",
+        description: "Your report has been exported as a ZIP file containing both PDF and Excel files.",
       });
     } catch (e) {
       toast({
         title: "Export Failed",
-        description: "Could not export all formats. Please try again.",
+        description: "Could not export ZIP file. Please try again.",
         variant: "destructive",
       });
     } finally {
