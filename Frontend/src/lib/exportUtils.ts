@@ -1,6 +1,20 @@
 import { jsPDF } from "jspdf";
 import ExcelJS from "exceljs";
 import JSZip from "jszip";
+import {
+  Document,
+  Packer,
+  Paragraph,
+  TextRun,
+  Table,
+  TableRow,
+  TableCell,
+  WidthType,
+  AlignmentType,
+  HeadingLevel,
+  BorderStyle,
+} from "docx";
+import { saveAs } from "file-saver";
 import { ResourceRow } from "@/components/ResourceTable";
 
 interface ReportData {
@@ -1057,4 +1071,883 @@ export const exportToZIP = async (data: ReportData): Promise<void> => {
   a.download = zipFileName;
   a.click();
   window.URL.revokeObjectURL(url);
+};
+
+// Export to Word document
+export const exportToWord = async (data: ReportData): Promise<void> => {
+  const safeNumber = (value: number | string | undefined) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const splitIntoRows = (text: string, maxRows: number, maxLen = 55) => {
+    if (!text) return Array(maxRows).fill("");
+
+    const lines: string[] = [];
+    text.split(/\r?\n/).forEach((rawLine) => {
+      const words = rawLine.split(/\s+/);
+      let current = "";
+      words.forEach((word) => {
+        const next = current ? `${current} ${word}` : word;
+        if (next.length > maxLen) {
+          if (current) lines.push(current);
+          current = word;
+        } else {
+          current = next;
+        }
+      });
+      if (current) lines.push(current);
+      if (lines.length >= maxRows) return;
+    });
+
+    return Array.from({ length: maxRows }, (_, i) => lines[i] || "");
+  };
+
+  const dateValue =
+    data.reportDate instanceof Date
+      ? data.reportDate
+      : data.reportDate
+      ? new Date(data.reportDate)
+      : undefined;
+
+  const dateStr = dateValue
+    ? dateValue.toISOString().split("T")[0] // yyyy-mm-dd format to match Excel
+    : "";
+
+  const weatherAMDisplay = data.weatherAM || "";
+  const weatherPMDisplay = data.weatherPM || "";
+  const tempAMDisplay = data.tempAM ? `${data.tempAM}°C` : "";
+  const tempPMDisplay = data.tempPM ? `${data.tempPM}°C` : "";
+
+  // Helper to create side-by-side resource tables (matching Excel structure)
+  const createSideBySideResourceTables = (
+    groupTitle: string | null,
+    title1: string,
+    rows1: ResourceRow[],
+    title2: string,
+    rows2: ResourceRow[],
+    hasUnit: boolean
+  ) => {
+    // Calculate totals for both tables
+    let totalPrev1 = 0,
+      totalToday1 = 0,
+      totalAccum1 = 0;
+    let totalPrev2 = 0,
+      totalToday2 = 0,
+      totalAccum2 = 0;
+    rows1.forEach((row) => {
+      totalPrev1 += safeNumber(row.prev);
+      totalToday1 += safeNumber(row.today);
+      totalAccum1 += safeNumber(row.accumulated);
+    });
+    rows2.forEach((row) => {
+      totalPrev2 += safeNumber(row.prev);
+      totalToday2 += safeNumber(row.today);
+      totalAccum2 += safeNumber(row.accumulated);
+    });
+
+    // Determine max rows (minimum 6 for teams, 1 for materials)
+    const maxRows = Math.max(
+      rows1.length,
+      rows2.length,
+      hasUnit ? 1 : 6
+    );
+
+    // Create a combined table with side-by-side layout
+    // Each row will have cells for both left and right tables
+    const tableRows: TableRow[] = [];
+
+    // Group title row if provided (spans both tables)
+    if (groupTitle) {
+      tableRows.push(
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: groupTitle,
+                      bold: true,
+                      color: "FFFFFF",
+                    }),
+                  ],
+                  alignment: AlignmentType.CENTER,
+                }),
+              ],
+              columnSpan: hasUnit ? 10 : 8,
+              shading: { fill: "3498DB" },
+            }),
+          ],
+        })
+      );
+    }
+
+    // Header row - both tables side by side
+    const headerCells: TableCell[] = [];
+    if (hasUnit) {
+      headerCells.push(
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: "Description", bold: true })],
+              alignment: AlignmentType.LEFT,
+            }),
+          ],
+          shading: { fill: "D9E1F2" },
+        }),
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: "Unit", bold: true })],
+              alignment: AlignmentType.CENTER,
+            }),
+          ],
+          shading: { fill: "D9E1F2" },
+        }),
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: "Prev", bold: true })],
+              alignment: AlignmentType.CENTER,
+            }),
+          ],
+          shading: { fill: "D9E1F2" },
+        }),
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: "Today", bold: true })],
+              alignment: AlignmentType.CENTER,
+            }),
+          ],
+          shading: { fill: "D9E1F2" },
+        }),
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: "Accum", bold: true })],
+              alignment: AlignmentType.CENTER,
+            }),
+          ],
+          shading: { fill: "D9E1F2" },
+        })
+      );
+    } else {
+      headerCells.push(
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: "Description", bold: true })],
+              alignment: AlignmentType.LEFT,
+            }),
+          ],
+          shading: { fill: "D9E1F2" },
+        }),
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: "Prev", bold: true })],
+              alignment: AlignmentType.CENTER,
+            }),
+          ],
+          shading: { fill: "D9E1F2" },
+        }),
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: "Today", bold: true })],
+              alignment: AlignmentType.CENTER,
+            }),
+          ],
+          shading: { fill: "D9E1F2" },
+        }),
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: "Accum", bold: true })],
+              alignment: AlignmentType.CENTER,
+            }),
+          ],
+          shading: { fill: "D9E1F2" },
+        })
+      );
+    }
+    
+    // Sub-header row with table titles
+    const subHeaderCells: TableCell[] = [];
+    if (hasUnit) {
+      subHeaderCells.push(
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: title1, bold: true, color: "FFFFFF" })],
+              alignment: AlignmentType.LEFT,
+            }),
+          ],
+          columnSpan: 5,
+          shading: { fill: "3498DB" },
+        }),
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: title2, bold: true, color: "FFFFFF" })],
+              alignment: AlignmentType.LEFT,
+            }),
+          ],
+          columnSpan: 5,
+          shading: { fill: "3498DB" },
+        })
+      );
+    } else {
+      subHeaderCells.push(
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: title1, bold: true, color: "FFFFFF" })],
+              alignment: AlignmentType.LEFT,
+            }),
+          ],
+          columnSpan: 4,
+          shading: { fill: "3498DB" },
+        }),
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: title2, bold: true, color: "FFFFFF" })],
+              alignment: AlignmentType.LEFT,
+            }),
+          ],
+          columnSpan: 4,
+          shading: { fill: "3498DB" },
+        })
+      );
+    }
+    tableRows.push(new TableRow({ children: subHeaderCells }));
+    tableRows.push(new TableRow({ children: [...headerCells, ...headerCells] }));
+
+    // Data rows - side by side
+    for (let i = 0; i < maxRows; i++) {
+      const row1 = rows1[i];
+      const row2 = rows2[i];
+      const rowCells: TableCell[] = [];
+
+      // Left table cells
+      if (hasUnit) {
+        rowCells.push(
+          new TableCell({
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({ text: row1?.description || "" }),
+                ],
+                alignment: AlignmentType.LEFT,
+              }),
+            ],
+            shading: i % 2 === 0 ? { fill: "F2F2F2" } : undefined,
+          }),
+          new TableCell({
+            children: [
+              new Paragraph({
+                children: [new TextRun({ text: row1?.unit || "" })],
+                alignment: AlignmentType.CENTER,
+              }),
+            ],
+            shading: i % 2 === 0 ? { fill: "F2F2F2" } : undefined,
+          }),
+          new TableCell({
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({ text: String(safeNumber(row1?.prev)) }),
+                ],
+                alignment: AlignmentType.CENTER,
+              }),
+            ],
+            shading: i % 2 === 0 ? { fill: "F2F2F2" } : undefined,
+          }),
+          new TableCell({
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({ text: String(safeNumber(row1?.today)) }),
+                ],
+                alignment: AlignmentType.CENTER,
+              }),
+            ],
+            shading: i % 2 === 0 ? { fill: "F2F2F2" } : undefined,
+          }),
+          new TableCell({
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: String(
+                      row1?.accumulated ??
+                        safeNumber(row1?.prev) + safeNumber(row1?.today)
+                    ),
+                  }),
+                ],
+                alignment: AlignmentType.CENTER,
+              }),
+            ],
+            shading: i % 2 === 0 ? { fill: "F2F2F2" } : undefined,
+          })
+        );
+      } else {
+        rowCells.push(
+          new TableCell({
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({ text: row1?.description || "" }),
+                ],
+                alignment: AlignmentType.LEFT,
+              }),
+            ],
+            shading: i % 2 === 0 ? { fill: "F2F2F2" } : undefined,
+          }),
+          new TableCell({
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({ text: String(safeNumber(row1?.prev)) }),
+                ],
+                alignment: AlignmentType.CENTER,
+              }),
+            ],
+            shading: i % 2 === 0 ? { fill: "F2F2F2" } : undefined,
+          }),
+          new TableCell({
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({ text: String(safeNumber(row1?.today)) }),
+                ],
+                alignment: AlignmentType.CENTER,
+              }),
+            ],
+            shading: i % 2 === 0 ? { fill: "F2F2F2" } : undefined,
+          }),
+          new TableCell({
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: String(
+                      row1?.accumulated ??
+                        safeNumber(row1?.prev) + safeNumber(row1?.today)
+                    ),
+                  }),
+                ],
+                alignment: AlignmentType.CENTER,
+              }),
+            ],
+            shading: i % 2 === 0 ? { fill: "F2F2F2" } : undefined,
+          })
+        );
+      }
+
+      // Right table cells
+      if (hasUnit) {
+        rowCells.push(
+          new TableCell({
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({ text: row2?.description || "" }),
+                ],
+                alignment: AlignmentType.LEFT,
+              }),
+            ],
+            shading: i % 2 === 0 ? { fill: "F2F2F2" } : undefined,
+          }),
+          new TableCell({
+            children: [
+              new Paragraph({
+                children: [new TextRun({ text: row2?.unit || "" })],
+                alignment: AlignmentType.CENTER,
+              }),
+            ],
+            shading: i % 2 === 0 ? { fill: "F2F2F2" } : undefined,
+          }),
+          new TableCell({
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({ text: String(safeNumber(row2?.prev)) }),
+                ],
+                alignment: AlignmentType.CENTER,
+              }),
+            ],
+            shading: i % 2 === 0 ? { fill: "F2F2F2" } : undefined,
+          }),
+          new TableCell({
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({ text: String(safeNumber(row2?.today)) }),
+                ],
+                alignment: AlignmentType.CENTER,
+              }),
+            ],
+            shading: i % 2 === 0 ? { fill: "F2F2F2" } : undefined,
+          }),
+          new TableCell({
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: String(
+                      row2?.accumulated ??
+                        safeNumber(row2?.prev) + safeNumber(row2?.today)
+                    ),
+                  }),
+                ],
+                alignment: AlignmentType.CENTER,
+              }),
+            ],
+            shading: i % 2 === 0 ? { fill: "F2F2F2" } : undefined,
+          })
+        );
+      } else {
+        rowCells.push(
+          new TableCell({
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({ text: row2?.description || "" }),
+                ],
+                alignment: AlignmentType.LEFT,
+              }),
+            ],
+            shading: i % 2 === 0 ? { fill: "F2F2F2" } : undefined,
+          }),
+          new TableCell({
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({ text: String(safeNumber(row2?.prev)) }),
+                ],
+                alignment: AlignmentType.CENTER,
+              }),
+            ],
+            shading: i % 2 === 0 ? { fill: "F2F2F2" } : undefined,
+          }),
+          new TableCell({
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({ text: String(safeNumber(row2?.today)) }),
+                ],
+                alignment: AlignmentType.CENTER,
+              }),
+            ],
+            shading: i % 2 === 0 ? { fill: "F2F2F2" } : undefined,
+          }),
+          new TableCell({
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: String(
+                      row2?.accumulated ??
+                        safeNumber(row2?.prev) + safeNumber(row2?.today)
+                    ),
+                  }),
+                ],
+                alignment: AlignmentType.CENTER,
+              }),
+            ],
+            shading: i % 2 === 0 ? { fill: "F2F2F2" } : undefined,
+          })
+        );
+      }
+      tableRows.push(new TableRow({ children: rowCells }));
+    }
+
+    // Total row - side by side
+    const totalCells: TableCell[] = [];
+    if (hasUnit) {
+      // Left table total
+      totalCells.push(
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: "TOTAL", bold: true })],
+              alignment: AlignmentType.LEFT,
+            }),
+          ],
+        }),
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: "" })],
+              alignment: AlignmentType.CENTER,
+            }),
+          ],
+        }),
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: String(totalPrev1), bold: true })],
+              alignment: AlignmentType.CENTER,
+            }),
+          ],
+        }),
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({ text: String(totalToday1), bold: true }),
+              ],
+              alignment: AlignmentType.CENTER,
+            }),
+          ],
+        }),
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({ text: String(totalAccum1), bold: true }),
+              ],
+              alignment: AlignmentType.CENTER,
+            }),
+          ],
+        }),
+        // Right table total
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: "TOTAL", bold: true })],
+              alignment: AlignmentType.LEFT,
+            }),
+          ],
+        }),
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: "" })],
+              alignment: AlignmentType.CENTER,
+            }),
+          ],
+        }),
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: String(totalPrev2), bold: true })],
+              alignment: AlignmentType.CENTER,
+            }),
+          ],
+        }),
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({ text: String(totalToday2), bold: true }),
+              ],
+              alignment: AlignmentType.CENTER,
+            }),
+          ],
+        }),
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({ text: String(totalAccum2), bold: true }),
+              ],
+              alignment: AlignmentType.CENTER,
+            }),
+          ],
+        })
+      );
+    } else {
+      // Left table total
+      totalCells.push(
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: "TOTAL", bold: true })],
+              alignment: AlignmentType.LEFT,
+            }),
+          ],
+        }),
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: String(totalPrev1), bold: true })],
+              alignment: AlignmentType.CENTER,
+            }),
+          ],
+        }),
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({ text: String(totalToday1), bold: true }),
+              ],
+              alignment: AlignmentType.CENTER,
+            }),
+          ],
+        }),
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({ text: String(totalAccum1), bold: true }),
+              ],
+              alignment: AlignmentType.CENTER,
+            }),
+          ],
+        }),
+        // Right table total
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: "TOTAL", bold: true })],
+              alignment: AlignmentType.LEFT,
+            }),
+          ],
+        }),
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: String(totalPrev2), bold: true })],
+              alignment: AlignmentType.CENTER,
+            }),
+          ],
+        }),
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({ text: String(totalToday2), bold: true }),
+              ],
+              alignment: AlignmentType.CENTER,
+            }),
+          ],
+        }),
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({ text: String(totalAccum2), bold: true }),
+              ],
+              alignment: AlignmentType.CENTER,
+            }),
+          ],
+        })
+      );
+    }
+    tableRows.push(new TableRow({ children: totalCells }));
+
+    return new Table({
+      rows: tableRows,
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      borders: {
+        top: { style: BorderStyle.SINGLE },
+        bottom: { style: BorderStyle.SINGLE },
+        left: { style: BorderStyle.SINGLE },
+        right: { style: BorderStyle.SINGLE },
+        insideHorizontal: { style: BorderStyle.SINGLE },
+        insideVertical: { style: BorderStyle.SINGLE },
+      },
+    });
+  };
+
+  // Helper to create side-by-side activity table (matching Excel structure)
+  const createActivityTable = () => {
+    const activityLines = splitIntoRows(data.activityToday || "", 10);
+    const planLines = splitIntoRows(data.workPlanNextDay || "", 10);
+
+    const tableRows: TableRow[] = [];
+
+    // Header row
+    tableRows.push(
+      new TableRow({
+        children: [
+          new TableCell({
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: "Working Activity Today",
+                    bold: true,
+                    color: "FFFFFF",
+                  }),
+                ],
+                alignment: AlignmentType.CENTER,
+              }),
+            ],
+            columnSpan: 1,
+            shading: { fill: "3498DB" },
+            width: { size: 50, type: WidthType.PERCENTAGE },
+          }),
+          new TableCell({
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: "Work Plan for Next Day",
+                    bold: true,
+                    color: "FFFFFF",
+                  }),
+                ],
+                alignment: AlignmentType.CENTER,
+              }),
+            ],
+            columnSpan: 1,
+            shading: { fill: "3498DB" },
+            width: { size: 50, type: WidthType.PERCENTAGE },
+          }),
+        ],
+      })
+    );
+
+    // Data rows - 10 rows side by side
+    for (let i = 0; i < 10; i++) {
+      tableRows.push(
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [
+                new Paragraph({
+                  text: activityLines[i] || "",
+                  spacing: { after: 100 },
+                }),
+              ],
+              shading: i % 2 === 0 ? { fill: "F2F2F2" } : undefined,
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  text: planLines[i] || "",
+                  spacing: { after: 100 },
+                }),
+              ],
+              shading: i % 2 === 0 ? { fill: "F2F2F2" } : undefined,
+            }),
+          ],
+        })
+      );
+    }
+
+    return new Table({
+      rows: tableRows,
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      borders: {
+        top: { style: BorderStyle.SINGLE },
+        bottom: { style: BorderStyle.SINGLE },
+        left: { style: BorderStyle.SINGLE },
+        right: { style: BorderStyle.SINGLE },
+        insideHorizontal: { style: BorderStyle.SINGLE },
+        insideVertical: { style: BorderStyle.SINGLE },
+      },
+    });
+  };
+
+  // Build document sections
+  const children: (Paragraph | Table)[] = [];
+
+  // Title
+  children.push(
+    new Paragraph({
+      text: "DAILY REPORT",
+      heading: HeadingLevel.TITLE,
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 400 },
+    })
+  );
+
+  // Project Info
+  children.push(
+    new Paragraph({
+      children: [
+        new TextRun({ text: "Project Name : ", bold: true }),
+        new TextRun({ text: data.projectName || "" }),
+      ],
+      spacing: { after: 200 },
+    }),
+    new Paragraph({
+      children: [
+        new TextRun({ text: "Weather          : AM ", bold: true }),
+        new TextRun({ text: weatherAMDisplay }),
+        new TextRun({ text: "  |  PM ", bold: true }),
+        new TextRun({ text: weatherPMDisplay }),
+      ],
+      spacing: { after: 200 },
+    }),
+    new Paragraph({
+      children: [
+        new TextRun({ text: "Temperature  : AM ", bold: true }),
+        new TextRun({ text: tempAMDisplay }),
+        new TextRun({ text: "    |  PM ", bold: true }),
+        new TextRun({ text: tempPMDisplay }),
+        new TextRun({
+          text: `                                        Date: ${dateStr}`,
+          bold: false,
+        }),
+      ],
+      spacing: { after: 400 },
+    })
+  );
+
+  // Activity sections - side by side table (matching Excel)
+  children.push(createActivityTable());
+
+  children.push(
+    new Paragraph({
+      text: "",
+      spacing: { after: 400 },
+    })
+  );
+
+  // Resources section - side by side tables (matching Excel)
+  // Resources Employeed - Site Management Team & Site Working Team
+  children.push(
+    createSideBySideResourceTables(
+      "Resources Employeed",
+      "Site Management Team",
+      data.managementTeam,
+      "Site Working Team",
+      data.workingTeam,
+      false
+    )
+  );
+
+  children.push(
+    new Paragraph({
+      text: "",
+      spacing: { after: 400 },
+    })
+  );
+
+  // Materials & Machinery - side by side
+  children.push(
+    createSideBySideResourceTables(
+      null,
+      "Materials Deliveries",
+      data.materials,
+      "Machinery & Equipment",
+      data.machinery,
+      true
+    )
+  );
+
+  // Create document
+  const doc = new Document({
+    sections: [
+      {
+        properties: {},
+        children,
+      },
+    ],
+  });
+
+  // Generate and download
+  const blob = await Packer.toBlob(doc);
+  const fileName = `Daily_Report_${
+    data.projectName?.replace(/\s+/g, "_") || "Report"
+  }_${formatDate(data.reportDate).replace(/\s+/g, "_")}.docx`;
+  saveAs(blob, fileName);
 };

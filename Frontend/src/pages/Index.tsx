@@ -6,7 +6,12 @@ import ResourcesSection from "@/components/ResourcesSection";
 import ReportActions from "@/components/ReportActions";
 import PDFPreviewModal from "@/components/PDFPreviewModal";
 import { ResourceRow } from "@/components/ResourceTable";
-import { exportToPDF, exportToExcel, exportToZIP } from "@/lib/exportUtils";
+import {
+  exportToPDF,
+  exportToExcel,
+  exportToZIP,
+  exportToWord,
+} from "@/lib/exportUtils";
 import { useToast } from "@/hooks/use-toast";
 
 // API Configuration
@@ -773,6 +778,40 @@ const Index = () => {
     setIsExporting(false);
   };
 
+  const handleExportDocs = async () => {
+    if (!validateReport()) return;
+
+    setIsExporting(true);
+    try {
+      await exportToWord({
+        projectName,
+        reportDate,
+        weatherAM,
+        weatherPM,
+        tempAM,
+        tempPM,
+        activityToday,
+        workPlanNextDay,
+        managementTeam,
+        workingTeam,
+        materials,
+        machinery,
+      });
+      toast({
+        title: "Word Document Exported",
+        description:
+          "Your report has been exported as Word document successfully.",
+      });
+    } catch (e) {
+      toast({
+        title: "Export Failed",
+        description: "Could not export Word document. Please try again.",
+        variant: "destructive",
+      });
+    }
+    setIsExporting(false);
+  };
+
   const handleExportAll = async () => {
     if (!validateReport()) return;
 
@@ -981,6 +1020,7 @@ const Index = () => {
           onPreview={handlePreview}
           onExportPDF={handleExportPDF}
           onExportExcel={handleExportExcel}
+          onExportDocs={handleExportDocs}
           onExportAll={handleExportAll}
           onClear={handleClear}
           onSubmit={handleSubmit}

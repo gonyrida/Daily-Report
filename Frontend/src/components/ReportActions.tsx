@@ -3,6 +3,7 @@ import {
   FileDown,
   FileSpreadsheet,
   FileText,
+  FileType,
   Send,
   Trash2,
 } from "lucide-react";
@@ -29,6 +30,7 @@ interface ReportActionsProps {
   onPreview: () => void;
   onExportPDF: () => void;
   onExportExcel: () => void;
+  onExportDocs: () => void;
   onExportAll: () => void;
   onClear: () => void;
   onSubmit: () => void;
@@ -41,6 +43,7 @@ const ReportActions = ({
   onPreview,
   onExportPDF,
   onExportExcel,
+  onExportDocs,
   onExportAll,
   onClear,
   onSubmit,
@@ -108,6 +111,10 @@ const ReportActions = ({
             <DropdownMenuItem onClick={onExportExcel}>
               <FileSpreadsheet className="w-4 h-4 mr-2" />
               Export Excel
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onExportDocs}>
+              <FileType className="w-4 h-4 mr-2" />
+              Export Docs (Word)
             </DropdownMenuItem>
             <DropdownMenuItem onClick={onExportAll}>
               <FileDown className="w-4 h-4 mr-2" />
