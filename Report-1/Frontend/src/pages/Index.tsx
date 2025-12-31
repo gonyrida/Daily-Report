@@ -5,6 +5,7 @@ import ActivitySection from "@/components/ActivitySection";
 import ResourcesSection from "@/components/ResourcesSection";
 import ReportActions from "@/components/ReportActions";
 import PDFPreviewModal from "@/components/PDFPreviewModal";
+import ReferenceSection from "@/components/ReferenceSection";
 import { ResourceRow } from "@/components/ResourceTable";
 import {
   exportToPDF,
@@ -142,6 +143,8 @@ interface ReportData {
   workingTeam: ResourceRow[];
   materials: ResourceRow[];
   machinery: ResourceRow[];
+  // Optional merged-reference data (kept optional so export logic isn't changed yet)
+  referenceSections?: any[];
 }
 
 const Index = () => {
@@ -165,6 +168,9 @@ const Index = () => {
   const [workingTeam, setWorkingTeam] = useState<ResourceRow[]>([]);
   const [materials, setMaterials] = useState<ResourceRow[]>([]);
   const [machinery, setMachinery] = useState<ResourceRow[]>([]);
+
+  // Reference Section state
+  const [referenceSections, setReferenceSections] = useState<any[]>([]);
 
   // UI State
   const [isSaving, setIsSaving] = useState(false);
@@ -204,6 +210,8 @@ const Index = () => {
       workingTeam,
       materials,
       machinery,
+      // Keep reference sections in the object for future export mapping (no export logic changed yet)
+      referenceSections,
     }),
     [
       projectName,
@@ -218,6 +226,7 @@ const Index = () => {
       workingTeam,
       materials,
       machinery,
+      referenceSections,
     ]
   );
 
@@ -998,6 +1007,11 @@ const Index = () => {
           setCurrentPeriod={setCurrentPeriod}
         />
 
+        {/* Report section label for clarity */}
+        <div className="mb-2 mt-2">
+          <h2 className="text-sm font-semibold text-foreground/80">Report</h2>
+        </div>
+
         <ActivitySection
           activityToday={activityToday}
           setActivityToday={setActivityToday}
@@ -1028,6 +1042,14 @@ const Index = () => {
           isExporting={isExporting}
           isSubmitting={isSubmitting}
         />
+
+        {/* Reference section (renders below Report content; maps to Excel Sheet 2) */}
+        <div className="mt-8 pt-6 border-t border-muted-foreground/20">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6">
+            <h2 className="text-sm font-semibold text-foreground/70 mb-4">Reference (Sheet 2)</h2>
+            <ReferenceSection sections={referenceSections} setSections={setReferenceSections} />
+          </div>
+        </div>
 
         <PDFPreviewModal
           open={showPreview}
