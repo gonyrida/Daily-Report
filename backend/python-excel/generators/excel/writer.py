@@ -9,6 +9,7 @@ from ..common.config import (
     FOOTER_COLUMNS
 )
 from .images import process_and_insert_images
+from openpyxl.styles import Alignment
 
 def prepare_entry_block(ws, current_row, template_start, template_end):
     """
@@ -37,25 +38,35 @@ def write_footers(ws, row, entry, footer_columns):
             # Using the common helper to ensure we don't break merged cells
             write_to_merged_safe(ws, row, footer_columns[idx], text)
 
-def fill_reference_sheet(ws, reference_entries):
-    """
-    This is the main entry point for the Reference Sheet (Sheet 2).
-    'ws' is the Worksheet object for the 2nd tab.
-    'reference_entries' is the list of data from your Node.js form.
-    """
-    current_row = ENTRY_BLOCK_START
+def fill_reference_sheet(ws, reference_entries, table_title="PHOTO REFERENCE"):
+    # 1. Write the static Table Title
+    write_to_merged_safe(ws, 3, 2, f"◙ {table_title}")
+    ws.cell(row=3, column=1).alignment = Alignment(horizontal='center', vertical='center')
+
+    current_row = ENTRY_BLOCK_START # Row 6
+    last_section = None
     image_cache = {}
 
     for entry in reference_entries:
-        # 1. Clone the template block for this entry
+        current_section = entry.get("section_title")
+
+        # 2. SECTION HEADER LOGIC
+        if current_section and current_section != last_section:
+            if last_section is not None:
+                # CLONE ROW 5 (The Section Title) to the current row
+                copy_row(ws, 5, current_row)
+                copy_merged_cells(ws, 5, 5, current_row - 5)
+                write_to_merged_safe(ws, current_row, 2, current_section)
+                current_row += 1 # Move past the header row
+            else:
+                # First section: write to existing Row 5
+                write_to_merged_safe(ws, 5, 2, current_section)
+            
+            last_section = current_section
+
+        # 3. IMAGE BLOCK LOGIC (Old Project Style)
         prepare_entry_block(ws, current_row, ENTRY_BLOCK_START, ENTRY_BLOCK_END)
-        
-        # 2. Insert the Images (using your existing images.py logic)
-        # Image row is usually row 2 of the block (current_row + 1)
         process_and_insert_images(ws, entry, image_cache, current_row + 1, DATA_COLUMNS)
-        
-        # 3. Write Footers (row 4 of the block: current_row + 3)
         write_footers(ws, current_row + 3, entry, FOOTER_COLUMNS)
         
-        # 4. Move down to the next block
         current_row += ENTRY_HEIGHT

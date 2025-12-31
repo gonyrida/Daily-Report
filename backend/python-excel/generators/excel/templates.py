@@ -1,28 +1,22 @@
 from copy import copy
 from openpyxl.styles import PatternFill
+from openpyxl.cell.cell import MergedCell 
 
 def copy_row(ws, src_row, tgt_row):
-    """
-    Copies values, row height, and ALL formatting 
-    to maintain the visual design of the template.
-    """
-    # 1. FIX ROW HEIGHT: Crucial so images have space to sit without overlapping
     ws.row_dimensions[tgt_row].height = ws.row_dimensions[src_row].height
-
     for col in range(1, ws.max_column + 1):
         src_cell = ws.cell(row=src_row, column=col)
         tgt_cell = ws.cell(row=tgt_row, column=col)
 
-        # Copy Value
-        tgt_cell.value = src_cell.value
+        # THIS IS THE FIX: Prevents the "Read-only" crash
+        if not isinstance(tgt_cell, MergedCell):
+            tgt_cell.value = src_cell.value
         
-        # 2. FIX DESIGN PRESERVATION: 
-        # Explicitly copy style objects to keep borders and alignment
         if src_cell.has_style:
             tgt_cell.font = copy(src_cell.font)
-            tgt_cell.border = copy(src_cell.border)       # Keeps the black grid lines
-            tgt_cell.fill = copy(src_cell.fill)           # Keeps the blue/grey headers
-            tgt_cell.alignment = copy(src_cell.alignment) # Keeps text centered in the boxes
+            tgt_cell.border = copy(src_cell.border)
+            tgt_cell.fill = copy(src_cell.fill)
+            tgt_cell.alignment = copy(src_cell.alignment)
             tgt_cell.number_format = copy(src_cell.number_format)
             tgt_cell.protection = copy(src_cell.protection)
 
