@@ -2,7 +2,7 @@ import React from "react";
 import SectionList from "./reference/SectionList";
 import { createReferenceSection } from "@/utils/referenceHelpers";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Image, PlusCircle, Image as ImageIcon, FileDown, FileText, FileSpreadsheet, FileType } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -71,6 +71,14 @@ export default function ReferenceSection({ sections, setSections }: Props) {
       </div>
 
       <div className="mt-4">
+        {/* Visual-only Table Title (UI placeholder only; no state/wiring) */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-muted-foreground mb-2">Table Title</label>
+          <Input placeholder="Enter table title (visual only)" />
+        </div>
+
+        <div className="border-t border-muted-foreground/20 mb-4" />
+
         <SectionList sections={sections} onUpdate={updateSection} onDelete={deleteSection} onAdd={addSection} />
       </div>
     </div>
