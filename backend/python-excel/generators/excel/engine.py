@@ -1,27 +1,48 @@
-# python-excel/generators/excel/writer.py
-from .templates import copy_row, copy_merged_cells
-from ..common.helpers import write_to_merged_safe
-from .images import process_and_insert_images
-from ..common.config import (
-    ENTRY_BLOCK_START, 
-    ENTRY_BLOCK_END, 
-    ENTRY_HEIGHT, 
-    DATA_COLUMNS, 
-    FOOTER_COLUMNS
+# generators/excel/engine.py
+import os
+from openpyxl import load_workbook
+from .sheets.report import (
+    fill_report_header, 
+    fill_activities, 
+    fill_team_tables, 
+    fill_material_machinery_tables
 )
+from .sheets.reference import fill_reference_sheet
 
-def prepare_entry_block(ws, current_row, template_start, template_end):
-    if current_row != template_start:
-        offset = current_row - template_start
-        for r in range(template_start, template_end + 1):
-            copy_row(ws, r, current_row + (r - template_start))
-        copy_merged_cells(ws, template_start, template_end, offset)
+def generate_full_report(data, mode="report"):
+    # 1. PATH SETUP
+    # Goes up from generators/excel/ to project root
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     
-    # Matching the 3.7 inch image height defined in images.py
-    ws.row_dimensions[current_row + 1].height = 267
+    # 2. SEPARATE FILE LOGIC
+    if mode == "report":
+        template_name = "template.xlsx"
+        template_path = os.path.join(base_dir, "templates", template_name)
+        wb = load_workbook(template_path)
+        ws = wb.worksheets[0]
+        
+        # Run ONLY Report Logic
+        fill_report_header(ws, data)
+        fill_activities(ws, data)
+        team_shift = fill_team_tables(ws, data)
+        fill_material_machinery_tables(ws, data, team_shift)
+        
+    elif mode == "reference":
+        template_name = "reference-template.xlsx"
+        template_path = os.path.join(base_dir, "templates", template_name)
+        wb = load_workbook(template_path)
+        ws = wb.worksheets[0]
+        
+        # 1. Run Reference Logic (This now includes our 4-entry counter + breaks)
+        fill_reference_sheet(ws, data.get("reference", []))
 
-def write_footers(ws, row, entry, footer_columns):
-    footers = entry.get("footers", ["", ""])
-    for idx, text in enumerate(footers):
-        if idx < len(footer_columns):
-            write_to_merged_safe(ws, row, footer_columns[idx], text)
+        # 2. FINAL PRINT CALIBRATION
+        # We must set fitToHeight to False (0) so Excel respects our MANUAL breaks
+        ws.page_setup.fitToWidth = 1
+        ws.page_setup.fitToHeight = 0 
+        
+        # Optional: Force Portrait and A4 for consistency
+        ws.page_setup.orientation = ws.ORIENTATION_PORTRAIT
+        ws.page_setup.paperSize = ws.PAPERSIZE_A4
+
+    return wb

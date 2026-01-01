@@ -48,3 +48,12 @@ def copy_merged_cells(ws, src_start, src_end, offset):
                 end_row=new_max_row, 
                 end_column=merged.max_col
             )
+
+def copy_cell_style(source_cell, target_cell):
+    """Copies all styling from one cell to another."""
+    if source_cell.has_style:
+        target_cell.font = copy(source_cell.font)
+        target_cell.border = copy(source_cell.border)
+        target_cell.fill = copy(source_cell.fill)
+        target_cell.number_format = copy(source_cell.number_format)
+        target_cell.alignment = copy(source_cell.alignment)
