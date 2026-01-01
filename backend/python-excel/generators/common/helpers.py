@@ -1,6 +1,7 @@
 # generators/common/helpers.py
 from io import BytesIO
 from PIL import Image
+import textwrap
 
 def write_to_merged_safe(ws, row, col, value):
     """
@@ -28,3 +29,18 @@ def get_image_from_path(file_path):
         return None
     with open(file_path, 'rb') as f:
         return f.read()
+
+def write_wrapped_rows(ws, start_row, col, text, max_rows, width=55):
+    """
+    Python version of splitIntoRows (Node.js lines 623-644).
+    Spreads text across multiple vertical rows.
+    """
+    if not text:
+        return
+    
+    # Wrap the text into a list of strings
+    lines = textwrap.wrap(str(text), width=width)
+    
+    # Write each line to a subsequent row
+    for i in range(min(len(lines), max_rows)):
+        ws.cell(row=start_row + i, column=col).value = lines[i]
