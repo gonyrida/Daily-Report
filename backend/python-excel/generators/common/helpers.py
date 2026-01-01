@@ -31,17 +31,26 @@ def get_image_from_path(file_path):
         return f.read()
 
 def write_wrapped_rows(ws, start_row, col, text, max_rows, width=55):
-    """
-    Python version of splitIntoRows (Node.js lines 623-644).
-    Spreads text across multiple vertical rows.
-    """
     if not text:
         return
-    
-    # Wrap the text into a list of strings
-    lines = textwrap.wrap(str(text), width=width)
-    
-    # Write each line to a subsequent row
+
+    raw = str(text)
+
+    # Split by explicit newlines first
+    paragraphs = raw.splitlines()
+
+    lines = []
+    for p in paragraphs:
+        p = p.strip()
+        if not p:
+            # keep a blank line if user put an empty line
+            lines.append("")
+            continue
+
+        # wrap each paragraph, but keep it grouped
+        wrapped = textwrap.wrap(p, width=width) or [""]
+        lines.extend(wrapped)
+
     for i in range(min(len(lines), max_rows)):
         ws.cell(row=start_row + i, column=col).value = lines[i]
 

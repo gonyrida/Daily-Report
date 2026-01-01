@@ -18,12 +18,12 @@ def generate_full_report(data, mode="combined"):
     if mode == "reference":
         if not data or 'reference' not in data:
             print("ERROR: Missing reference data")
-            return create_empty_workbook()
+            # return create_empty_workbook()
     else:
         # Original validation for report modes
         if not data or 'projectName' not in data:
             print("ERROR: Missing required data")
-            return create_empty_workbook()
+            # return create_empty_workbook()
 
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     template_path = os.path.join(base_dir, "templates", "template.xlsx")

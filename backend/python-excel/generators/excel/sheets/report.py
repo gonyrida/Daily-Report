@@ -42,21 +42,20 @@ def fill_report_header(ws, data):
             ws["I9"].value = report_date
 
 def fill_activities(ws, data):
-    # Define the "Left-Top" style
     report_style = Alignment(horizontal='left', vertical='top', wrap_text=True)
-    normal_font = Font(bold=False, name='Arial', size=10) # Adjust name/size to match your template
-    
-    # 1. Fill and Style Activities Today (Col B, Rows 12 to 21)
-    write_wrapped_rows(ws, start_row=12, col=2, text=data.get('activityToday', ''), max_rows=10)
-    for row_idx in range(12, 22): # Apply to all 10 possible rows
-        ws.cell(row=row_idx, column=2).alignment = report_style
-        ws.cell(row=row_idx, column=2).font = normal_font # <--- This removes the bold
+    normal_font = Font(bold=False, name='Arial', size=10)
 
-    # 2. Fill and Style Work Plan (Col G, Rows 12 to 21)
-    write_wrapped_rows(ws, start_row=12, col=7, text=data.get('workPlanNextDay', ''), max_rows=10)
+    # Activities Today (B12 to B21)
+    write_wrapped_rows(ws, start_row=12, col=2, text=data.get('activityToday', ''), max_rows=10, width=110)
+    for row_idx in range(12, 22):
+        ws.cell(row=row_idx, column=2).alignment = report_style
+        ws.cell(row=row_idx, column=2).font = normal_font
+
+    # Work Plan Next Day (G12 to G21)
+    write_wrapped_rows(ws, start_row=12, col=7, text=data.get('workPlanNextDay', ''), max_rows=10, width=110)
     for row_idx in range(12, 22):
         ws.cell(row=row_idx, column=7).alignment = report_style
-        ws.cell(row=row_idx, column=7).font = normal_font # <--- This removes the bold
+        ws.cell(row=row_idx, column=7).font = normal_font
 
 def fill_team_tables(ws, data):
     mgmt_team = data.get('managementTeam', [])
