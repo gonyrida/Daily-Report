@@ -39,53 +39,51 @@ def write_footers(ws, row, entry, footer_columns):
             write_to_merged_safe(ws, row, footer_columns[idx], text)
 
 def fill_reference_sheet(ws, reference_entries, table_title="PHOTO REFERENCE"):
-    # 1. Write the static Table Title
+    # 1. Header setup
     write_to_merged_safe(ws, 3, 2, f"◙ {table_title}")
     ws.cell(row=3, column=1).alignment = Alignment(horizontal='center', vertical='center')
 
     current_row = ENTRY_BLOCK_START # Row 6
     last_section = None
     image_cache = {}
-    
-    # --- 2. THE COUNTER ---
     entries_on_current_page = 0 
 
     for entry in reference_entries:
         current_section = entry.get("section_title")
 
-        # 2. SECTION HEADER LOGIC
+        # --- CHANGE 1: SECTION HEADER LOGIC ---
         if current_section and current_section != last_section:
-            # Check if we need a break BEFORE starting a new section title
-            # Only if we are NOT at the very start of the document
+            # If we reached 4 entries, break BEFORE printing the next Section Title
+            if entries_on_current_page >= 4 and last_section is not None:
+                ws.row_breaks.append(Break(id=current_row - 1))
+                entries_on_current_page = 0 
+
             if last_section is not None:
-                # If we have 4 entries already, we will break anyway in step 3.
-                # But if you want a clean break for new sections, you'd check here.
-                # For "Dynamic 4-per-page", we let the entry counter handle it.
-                
                 copy_row(ws, 5, current_row)
                 copy_merged_cells(ws, 5, 5, current_row - 5)
                 write_to_merged_safe(ws, current_row, 2, current_section)
                 current_row += 1 
             else:
+                # First section of the whole document
                 write_to_merged_safe(ws, 5, 2, current_section)
             
             last_section = current_section
 
-        # --- 3. THE SMART PAGE BREAK ---
-        # If we just finished 4 entries, drop a break before the next entry starts
-        if entries_on_current_page == 4:
+        # --- CHANGE 2: ENTRY BREAK LOGIC ---
+        # If an entry (not a section title) is about to be the 5th item, break first
+        if entries_on_current_page >= 4:
             ws.row_breaks.append(Break(id=current_row - 1))
-            entries_on_current_page = 0 # Reset the count for the new page
+            entries_on_current_page = 0
 
-        # 4. IMAGE BLOCK LOGIC
+        # 4. IMAGE BLOCK LOGIC (Remains the same)
         prepare_entry_block(ws, current_row, ENTRY_BLOCK_START, ENTRY_BLOCK_END)
         process_and_insert_images(ws, entry, image_cache, current_row + 1, DATA_COLUMNS)
         write_footers(ws, current_row + 3, entry, FOOTER_COLUMNS)
         
         current_row += ENTRY_HEIGHT
-        entries_on_current_page += 1 # <--- 4. INCREMENT COUNTER
+        entries_on_current_page += 1 
 
     # Final Setup
     ws.print_title_rows = '1:4'
     ws.page_setup.fitToWidth = 1
-    ws.page_setup.fitToHeight = 0 # Essential for dynamic breaks
+    ws.page_setup.fitToHeight = 0
