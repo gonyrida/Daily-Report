@@ -34,6 +34,7 @@ interface ReportActionsProps {
   onExportAll: () => void;
   onClear: () => void;
   onSubmit: () => void;
+  onExportReference?: () => void;
   isPreviewing?: boolean;
   isExporting?: boolean;
   isSubmitting?: boolean;
@@ -43,6 +44,7 @@ const ReportActions = ({
   onPreview,
   onExportPDF,
   onExportExcel,
+  onExportReference,
   onExportDocs,
   onExportAll,
   onClear,

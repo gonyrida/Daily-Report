@@ -9,9 +9,13 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 interface Props {
   sections: any[];
   setSections: (s: any[]) => void;
+  onExportReference?: () => void;
+  isExporting?: boolean;
+  tableTitle?: string;
+  setTableTitle?: (title: string) => void;
 }
 
-export default function ReferenceSection({ sections, setSections }: Props) {
+export default function ReferenceSection({ sections, setSections, onExportReference, isExporting = false, tableTitle, setTableTitle }: Props) {
   const addSection = () => setSections([...sections, createReferenceSection()]);
 
   const updateSection = (updated: any) => setSections(sections.map((s) => (s.id === updated.id ? updated : s)));
@@ -40,9 +44,11 @@ export default function ReferenceSection({ sections, setSections }: Props) {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button className="min-w-[140px] bg-primary hover:bg-primary/90">
+                <Button 
+                  disabled={isExporting || !onExportReference}
+                  className="min-w-[140px] bg-primary hover:bg-primary/90">
                   <FileDown className="w-4 h-4 mr-2" />
-                  Export
+                  {isExporting ? "Exporting..." : "Export"}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -50,7 +56,7 @@ export default function ReferenceSection({ sections, setSections }: Props) {
                   <FileText className="w-4 h-4 mr-2" />
                   Export PDF
                 </DropdownMenuItem>
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={onExportReference} disabled={isExporting || !onExportReference}>
                   <FileSpreadsheet className="w-4 h-4 mr-2" />
                   Export Excel
                 </DropdownMenuItem>
@@ -74,7 +80,11 @@ export default function ReferenceSection({ sections, setSections }: Props) {
         {/* Visual-only Table Title (UI placeholder only; no state/wiring) */}
         <div className="mb-6">
           <label className="block text-sm font-medium text-muted-foreground mb-2">Table Title</label>
-          <Input placeholder="Enter table title (visual only)" />
+          <Input 
+            placeholder="Enter table title (visual only)" 
+            value={tableTitle || ""}
+            onChange={(e) => setTableTitle?.(e.target.value)}
+          />
         </div>
 
         <div className="border-t border-muted-foreground/20 mb-4" />

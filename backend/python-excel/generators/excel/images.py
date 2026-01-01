@@ -3,6 +3,7 @@ import os
 from io import BytesIO
 from openpyxl.drawing.image import Image as XLImage
 from openpyxl.drawing.spreadsheet_drawing import TwoCellAnchor, AnchorMarker
+import base64
 
 def process_and_insert_images(ws, entry, image_cache, image_row, data_columns):
     """
@@ -16,14 +17,19 @@ def process_and_insert_images(ws, entry, image_cache, image_row, data_columns):
 
         # 1. Get Image Bytes
         if img_source not in image_cache:
-            if isinstance(img_source, str) and os.path.exists(img_source):
-                # If Node.js sent a file path
-                with open(img_source, 'rb') as f:
+            if isinstance(img_source, str) and img_source.startswith("data:image"):
+                # Example: data:image/png;base64,AAAA...
+                header, b64data = img_source.split(",", 1)
+                image_cache[img_source] = base64.b64decode(b64data)
+
+            elif isinstance(img_source, str) and os.path.exists(img_source):
+                with open(img_source, "rb") as f:
                     image_cache[img_source] = f.read()
-            elif hasattr(img_source, 'read'):
-                # If it's still a file-like object (old flask style)
+
+            elif hasattr(img_source, "read"):
                 img_source.seek(0)
                 image_cache[img_source] = img_source.read()
+
             else:
                 continue
 

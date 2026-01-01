@@ -13,9 +13,15 @@ CORS(app)
 
 @app.route("/generate-report", methods=["POST"])
 def generate_report():
-    data = request.json 
-    # Use the engine with mode="report" (it will delete the reference sheet automatically)
-    wb = generate_full_report(data, mode="report")
+    payload = request.json
+    mode = payload.get('mode', 'report')
+    data = payload.get('data')  # Extract the actual data
+    
+    # Debug: Print what we received
+    print(f"Mode: {mode}")
+    print(f"Data keys: {list(data.keys()) if data else 'None'}")
+    
+    wb = generate_full_report(data, mode=mode)
     output = save_to_memory(wb)
     
     return send_file(

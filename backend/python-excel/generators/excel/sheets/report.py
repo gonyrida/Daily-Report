@@ -331,3 +331,27 @@ def fill_material_machinery_tables(ws, data, shifted_offset=0):
     
     # Return the new total offset
     return shifted_offset + extra_growth
+
+def fill_report_sheet(ws, data):
+    """Fill the main report sheet with form data"""
+    
+    # Fill project info
+    ws['B7'] = f"Project Name : {data.get('projectName', '')}"
+    ws['B8'] = f"Weather          : AM {data.get('weatherAM', '')}  |  PM {data.get('weatherPM', '')}"
+    ws['B9'] = f"Temperature  : AM {data.get('tempAM', '')}°C    |  PM {data.get('tempPM', '')}°C"
+    
+    # Fill activities
+    ws['B12'] = data.get('activityToday', '')
+    ws['G12'] = data.get('workPlanNextDay', '')
+    
+    # Fill teams
+    fill_team_tables(ws, {
+        'managementTeam': data.get('managementTeam', []),
+        'workingTeam': data.get('workingTeam', [])
+    })
+    
+    # Fill materials/machinery
+    fill_material_machinery_tables(ws, {
+        'materials': data.get('materials', []),
+        'machinery': data.get('machinery', [])
+    })

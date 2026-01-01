@@ -17,6 +17,7 @@ import {
   exportToWord,
 } from "@/lib/exportUtils";
 import { useToast } from "@/hooks/use-toast";
+import { generatePythonExcel, generateReferenceExcel, generateCombinedExcel } from "@/integrations/reportsApi"
 
 // API Configuration
 const API_BASE_URL = "http://localhost:5000/api/daily-reports";
@@ -174,6 +175,11 @@ const Index = () => {
 
   // Reference Section state
   const [referenceSections, setReferenceSections] = useState<any[]>([]);
+  const [tableTitle, setTableTitle] = useState("SITE PHOTO EVIDENCE");
+  const [isExportingReference, setIsExportingReference] = useState(false);
+
+  // Combined Export state
+  const [isExportingCombined, setIsExportingCombined] = useState(false);
 
   // UI State
   const [isSaving, setIsSaving] = useState(false);
@@ -757,14 +763,15 @@ const Index = () => {
     }
   };
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     if (!validateReport()) return;
 
     setIsExporting(true);
     try {
-      exportToExcel({
+      // Prepare payload for Python backend
+      const payload = {
         projectName,
-        reportDate,
+        reportDate: reportDate?.toISOString(),
         weatherAM,
         weatherPM,
         tempAM,
@@ -775,19 +782,199 @@ const Index = () => {
         workingTeam,
         materials,
         machinery,
-      });
+      };
+
+      // Call Python API instead of Node.js exportToExcel
+      await generatePythonExcel(payload, 'report');
+
       toast({
         title: "Excel Exported",
-        description: "Your report has been exported as Excel successfully.",
+        description: "Your report has been exported successfully.",
+      });
+    } catch (error) {
+      console.error("Export Error:", error);
+      toast({
+        variant: "destructive",
+        title: "Export Failed",
+        description: "Could not connect to Python server. Ensure it's running on port 5001.",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportReference = async () => {
+    setIsExportingReference(true)
+    try {
+      // Check if there are any reference sections
+      if (!referenceSections || referenceSections.length === 0) {
+        toast({
+          title: "No Reference Data",
+          description: "Please add reference sections before exporting.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const toBase64DataUrl = async (img: unknown): Promise<string | null> => {
+        if (!img) return null;
+
+        // Case 1: already a string (blob URL, data URL, http URL, etc.)
+        if (typeof img === "string") {
+          if (!img.startsWith("blob:")) return img;
+
+          const resp = await fetch(img);
+          const blob = await resp.blob();
+
+          return await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(String(reader.result));
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+        }
+
+        // Case 2: File object (common)
+        if (img instanceof File) {
+          return await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(String(reader.result));
+            reader.onerror = reject;
+            reader.readAsDataURL(img);
+          });
+        }
+
+        // Case 3: unknown object shape (skip it safely)
+        return null;
+      };
+
+      const processImages = async (sectionsArr: any[]) => {
+        return await Promise.all(
+          sectionsArr.map(async (sec) => {
+            const newEntries = await Promise.all(
+              (sec.entries ?? []).map(async (entry: any) => {
+                const newSlots = await Promise.all(
+                  (entry.slots ?? []).map(async (slot: any) => ({
+                    ...slot,
+                    image: await toBase64DataUrl(slot.image),
+                  }))
+                );
+                return { ...entry, slots: newSlots };
+              })
+            );
+            return { ...sec, entries: newEntries };
+          })
+        );
+      };
+
+      const processedSections = await processImages(referenceSections);
+      await generateReferenceExcel(processedSections, tableTitle);
+
+      toast({
+        title: "Reference Exported",
+        description: "Reference section exported successfully.",
+      });
+    } catch (error) {
+      console.error("Reference Export Error:", error);
+      toast({
+        variant: "destructive",
+        title: "Export Failed",
+        description: "Could not generate reference. Ensure Python server is running.",
+      });
+    } finally {
+      setIsExportingReference(false)
+    }
+  };
+
+  const handleExportCombinedExcel = async () => {
+    if (!validateReport()) return;
+
+    setIsExportingCombined(true);
+    try {
+      const toBase64DataUrl = async (img: unknown): Promise<string | null> => {
+        if (!img) return null;
+
+        // Case 1: already a string (blob URL, data URL, http URL, etc.)
+        if (typeof img === "string") {
+          if (!img.startsWith("blob:")) return img;
+
+          const resp = await fetch(img);
+          const blob = await resp.blob();
+
+          return await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(String(reader.result));
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+        }
+
+        // Case 2: File object (common)
+        if (img instanceof File) {
+          return await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(String(reader.result));
+            reader.onerror = reject;
+            reader.readAsDataURL(img);
+          });
+        }
+
+        // Case 3: unknown object shape (skip it safely)
+        return null;
+      };
+
+      const processImages = async (sectionsArr: any[]) => {
+        return await Promise.all(
+          sectionsArr.map(async (sec) => {
+            const newEntries = await Promise.all(
+              (sec.entries ?? []).map(async (entry: any) => {
+                const newSlots = await Promise.all(
+                  (entry.slots ?? []).map(async (slot: any) => ({
+                    ...slot,
+                    image: await toBase64DataUrl(slot.image),
+                  }))
+                );
+                return { ...entry, slots: newSlots };
+              })
+            );
+            return { ...sec, entries: newEntries };
+          })
+        );
+      };
+
+      const processedSections = await processImages(referenceSections);
+
+      const reportPayload = {
+        projectName,
+        reportDate: reportDate?.toISOString(),
+        weatherAM,
+        weatherPM,
+        tempAM,
+        tempPM,
+        activityToday,
+        workPlanNextDay,
+        managementTeam,
+        workingTeam,
+        materials,
+        machinery,
+      };
+
+      await generateCombinedExcel(reportPayload, processedSections, tableTitle);
+
+      toast({
+        title: "Combined Excel Exported",
+        description: "Report + Reference exported successfully.",
       });
     } catch (e) {
+      console.error("Combined Export Error:", e);
       toast({
-        title: "Export Failed",
-        description: "Could not export Excel. Please try again.",
         variant: "destructive",
+        title: "Export Failed",
+        description: "Could not generate combined Excel. Ensure Python server is running.",
       });
+    } finally {
+      setIsExportingCombined(false);
     }
-    setIsExporting(false);
   };
 
   const handleExportDocs = async () => {
@@ -1050,7 +1237,14 @@ const Index = () => {
         <div className="mt-8 pt-6 border-t border-muted-foreground/20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6">
             <h2 className="text-sm font-semibold text-foreground/70 mb-4">Reference</h2>
-            <ReferenceSection sections={referenceSections} setSections={setReferenceSections} />
+            <ReferenceSection 
+              sections={referenceSections} 
+              setSections={setReferenceSections} 
+              onExportReference={handleExportReference} 
+              isExporting={isExportingReference} 
+              tableTitle={tableTitle} 
+              setTableTitle={setTableTitle}
+            />
           </div>
         </div>
 
@@ -1066,9 +1260,12 @@ const Index = () => {
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button className="min-w-[160px] bg-primary hover:bg-primary/90">
+                  <Button 
+                    className="min-w-[160px] bg-primary hover:bg-primary/90"
+                    disabled={isExportingCombined}
+                  >
                     <FileDown className="w-4 h-4 mr-2" />
-                    Export Combined
+                    {isExportingCombined ? "Exporting Combined..." : "Export Combined Excel"}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -1076,7 +1273,7 @@ const Index = () => {
                     <FileText className="w-4 h-4 mr-2" />
                     Export Combined PDF
                   </DropdownMenuItem>
-                  <DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExportCombinedExcel} disabled={isExportingCombined}>
                     <FileSpreadsheet className="w-4 h-4 mr-2" />
                     Export Combined Excel
                   </DropdownMenuItem>
