@@ -2,6 +2,7 @@
 from io import BytesIO
 from PIL import Image
 import textwrap
+import os
 
 def write_to_merged_safe(ws, row, col, value):
     """
